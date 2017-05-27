@@ -51,11 +51,12 @@ static const char* const kPort = "port";
 //static const char* const kTotal = "total";
 static const char* const kHistoryResult = "historyresult";
 
-static const unsigned int kBanTime = 6 * 60 * 1000;  // 6 min
+static const unsigned int kBanTime = 6 * 60 * 1000;  // 好大： 服务器被 ban 时间间隔 6 min
 static const int kBanFailCount = 3;
 static const int kSuccessUpdateInterval = 10*1000;
 static const int kFailUpdateInterval = 10*1000;
 
+// 好大： 1：失败／屏蔽 0：成功
 #define SET_BIT(SET, RECORDS)  RECORDS = (((RECORDS)<<1) | (bool(SET)))
 
 static inline
@@ -112,6 +113,7 @@ void SimpleIPPortSort::__LoadXml() {
     __RemoveTimeoutXml();
 }
 
+// 好大：作为命中"缓存"，每条记录最多被记录 24 小时
 void SimpleIPPortSort::__RemoveTimeoutXml() {
     std::vector<tinyxml2::XMLElement*> remove_ele_ptr_list;
 
@@ -258,6 +260,7 @@ bool SimpleIPPortSort::__IsBanned(const std::string& _ip, unsigned short _port) 
     return __IsBanned(__FindBannedIter(_ip, _port));
 }
 
+// 好大：失败次数大于 3 次，且最近一次失败时间在 6 分钟内，就算被屏蔽了
 bool SimpleIPPortSort::__IsBanned(std::vector<BanItem>::iterator _iter) const {
     if (_iter == _ban_fail_list_.end()) return false;
 
@@ -271,6 +274,7 @@ bool SimpleIPPortSort::__IsBanned(std::vector<BanItem>::iterator _iter) const {
     return false;
 }
 
+// 好大：更新 _ban_fail_list_ 列表中，对应 IP&PORT 成功和失败情况，包括统计失败成功次数，最近是失败、成功的时间戳
 void SimpleIPPortSort::__UpdateBanList(bool _is_success, const std::string& _ip, unsigned short _port) {
     for (std::vector<BanItem>::iterator iter = _ban_fail_list_.begin(); iter != _ban_fail_list_.end(); ++iter) {
         if (iter->ip == _ip && iter->port == _port) {
@@ -296,6 +300,7 @@ void SimpleIPPortSort::__UpdateBanList(bool _is_success, const std::string& _ip,
     _ban_fail_list_.push_back(item);
 }
 
+// 好大：无视10秒钟内，连续的成功或失败记录
 bool SimpleIPPortSort::__CanUpdate(const std::string& _ip, uint16_t _port, bool _is_success) const {
     for (std::vector<BanItem>::iterator iter = _ban_fail_list_.begin(); iter != _ban_fail_list_.end(); ++iter) {
         if (iter->ip == _ip && iter->port == _port) {
@@ -311,8 +316,10 @@ bool SimpleIPPortSort::__CanUpdate(const std::string& _ip, uint16_t _port, bool 
     return true;
 }
 
+// 好大：将被认为被屏蔽的 IP 地址从列表中踢出
 void SimpleIPPortSort::__FilterbyBanned(std::vector<IPPortItem>& _items) const {
     for (std::vector<IPPortItem>::iterator it = _items.begin(); it != _items.end();) {
+        // 好大：移除掉被 ban 的 ip 地址
         if (__IsBanned(it->str_ip, it->port) || __IsServerBan(it->str_ip)) {
             xwarn2(TSF"ip:%0, port:%1, is ban!!", it->str_ip, it->port);
             it = _items.erase(it);
@@ -322,6 +329,7 @@ void SimpleIPPortSort::__FilterbyBanned(std::vector<IPPortItem>& _items) const {
     }
 }
 
+// 好大：如果被加入屏蔽列表 6 分钟内，就算被屏蔽了；超出 6 分钟就自动移除屏蔽列表
 bool SimpleIPPortSort::__IsServerBan(const std::string& _ip) const {
     std::map<std::string, uint64_t>::iterator iter = _server_bans_.find(_ip);
 
@@ -346,6 +354,7 @@ void SimpleIPPortSort::__SortbyBanned(std::vector<IPPortItem>& _items) const {
     //separate new and history
     std::deque<IPPortItem> items_history(_items.size());
     std::deque<IPPortItem> items_new(_items.size());
+    
     auto find_lambda = [&](const IPPortItem& _v) {
         for (std::vector<BanItem>::const_iterator it_banned = _ban_fail_list_.begin(); it_banned != _ban_fail_list_.end(); ++it_banned) {
             if (it_banned->ip == _v.str_ip && it_banned->port == _v.port) {
@@ -355,7 +364,9 @@ void SimpleIPPortSort::__SortbyBanned(std::vector<IPPortItem>& _items) const {
         return false;
     };
     
+    // 好大：items_history 包含 _items 已经存在 _ban_fail_list_ 中的 list
     items_history.erase(std::remove_copy_if(_items.begin(), _items.end(), items_history.begin(), !boost::bind<bool>(find_lambda, _1)), items_history.end());
+    // 好大：items_new 包含 _items 不存在 _ban_fail_list_ 中的 list
     items_new.erase(std::remove_copy_if(_items.begin(), _items.end(), items_new.begin(), find_lambda), items_new.end());
     xassert2(_items.size() == items_history.size()+items_new.size(), TSF"_item:%_, history:%_, new:%_", _items.size(), items_history.size(), items_new.size());
     
@@ -371,13 +382,19 @@ void SimpleIPPortSort::__SortbyBanned(std::vector<IPPortItem>& _items) const {
                       
                   xassert2(l != _ban_fail_list_.end());
                   xassert2(r != _ban_fail_list_.end());
-                      
+                  
+                  // 好大：按照被 ban 的次数，最近失败时间，最近成功时间 进行排序，选择更优质的 IP & PORT
+                  // 有点疑问：为什么"最近失败时间" 优先级 在 "最近成功时间" 之上？说好的"成功是绝对的，失败是相对的"呢？
+                  
+                  // 好大：失败次数越多，越靠后
                  if (CAL_BIT_COUNT(l->records) != CAL_BIT_COUNT(r->records))
                      return CAL_BIT_COUNT(l->records) < CAL_BIT_COUNT(r->records);
                       
+                  // 好大：最近失败时间越早，越靠前
                  if (l->last_fail_time != r->last_fail_time)
                      return l->last_fail_time < r->last_fail_time;
                   
+                  // 好大：最近成功时间越早，越靠后
                  if (l->last_suc_time != r->last_suc_time)
                      return l->last_suc_time > r->last_suc_time;
                   
@@ -385,7 +402,7 @@ void SimpleIPPortSort::__SortbyBanned(std::vector<IPPortItem>& _items) const {
                   return false;
               });
     
-   //merge
+   // 好大：然后新 IP 和 排序好的老IP随意穿插，组成新的最终列表
     _items.clear();
     while ( !items_history.empty() || !items_new.empty()) {
         int ran = rand()%(items_history.size()+items_new.size());
@@ -404,12 +421,17 @@ void SimpleIPPortSort::__SortbyBanned(std::vector<IPPortItem>& _items) const {
 
 void SimpleIPPortSort::SortandFilter(std::vector<IPPortItem>& _items, int _needcount) const {
     ScopedLock lock(mutex_);
+
+    // 好大：首先移除掉被 ban 的 ip 地址
     __FilterbyBanned(_items);
+    
+    // 好大：然后按照 IP&PORT 的"质量"进行排序
     __SortbyBanned(_items);
     
     if (_needcount < (int)_items.size()) _items.resize(_needcount);
 }
 
+// 有逻辑层"手动"添加屏蔽的 IP
 void SimpleIPPortSort::AddServerBan(const std::string& _ip) {
     if (_ip.empty()) return;
 
