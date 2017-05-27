@@ -94,7 +94,7 @@
 }
 
 - (void)sendMessage {
-    CGITask *sendMsgCGI = [[CGITask alloc] initAll:ChannelType_LongConn AndCmdId:kSendMsg AndCGIUri:@"/mars/sendmessage" AndHost:@"www.marsopen.cn"];
+    CGITask *sendMsgCGI = [[CGITask alloc] initAll:ChannelType_LongConn AndCmdId:kSendMsg AndCGIUri:@"/mars/sendmessage" AndHost:@"10.1.1.10"];
     [[NetworkService sharedInstance] startTask:sendMsgCGI ForUI:self];
 }
 

@@ -53,7 +53,7 @@
 }
 
 - (IBAction)sendMessage:(id)sender {
-    CGITask *sendMsgCGI = [[CGITask alloc] initAll:ChannelType_LongConn AndCmdId:kSendMsg AndCGIUri:@"/mars/sendmessage" AndHost:@"www.marsopen.cn"];
+    CGITask *sendMsgCGI = [[CGITask alloc] initAll:ChannelType_LongConn AndCmdId:kSendMsg AndCGIUri:@"/mars/sendmessage" AndHost:@"localhost"];
     [[NetworkService sharedInstance] startTask:sendMsgCGI ForUI:self];
     
     self->text = _textField.stringValue;

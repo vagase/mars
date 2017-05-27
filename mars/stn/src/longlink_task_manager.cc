@@ -150,6 +150,7 @@ unsigned int LongLinkTaskManager::GetTasksContinuousFailCount() {
     return tasks_continuous_fail_count_;
 }
 
+// 好大：当网络发生变化，或者长连接被重置当时候，需要将队列里面所有 task 立即重新执行一遍
 void LongLinkTaskManager::RedoTasks() {
     xdebug_function();
 
@@ -200,6 +201,7 @@ void LongLinkTaskManager::__RunLoop() {
     }
 }
 
+// 好大：用来检查 task 是否超时
 void LongLinkTaskManager::__RunOnTimeout() {
     std::list<TaskProfile>::iterator first = lst_cmd_.begin();
     std::list<TaskProfile>::iterator last = lst_cmd_.end();
@@ -213,6 +215,7 @@ void LongLinkTaskManager::__RunOnTimeout() {
         ++next;
 
         if (first->running_id && 0 < first->transfer_profile.start_send_time) {
+            // 好大：首包超时
             if (0 == first->transfer_profile.last_receive_pkg_time && cur_time - first->transfer_profile.start_send_time >= first->transfer_profile.first_pkg_timeout) {
                 xerror2(TSF"task first-pkg timeout taskid:%_,  nStartSendTime=%_, nfirstpkgtimeout=%_",
                         first->task.taskid, first->transfer_profile.start_send_time / 1000, first->transfer_profile.first_pkg_timeout / 1000);
@@ -220,6 +223,7 @@ void LongLinkTaskManager::__RunOnTimeout() {
                 __SetLastFailedStatus(first);
             }
 
+            // 好大：包包超时
             if (0 < first->transfer_profile.last_receive_pkg_time && cur_time - first->transfer_profile.last_receive_pkg_time >= ((kMobile != getNetInfo()) ? kWifiPackageInterval : kGPRSPackageInterval)) {
                 xerror2(TSF"task pkg-pkg timeout, taskid:%_, nLastRecvTime=%_, pkg-pkg timeout=%_",
                         first->task.taskid, first->transfer_profile.last_receive_pkg_time / 1000, ((kMobile != getNetInfo()) ? kWifiPackageInterval : kGPRSPackageInterval) / 1000);
@@ -227,13 +231,14 @@ void LongLinkTaskManager::__RunOnTimeout() {
             }
         }
 
-
+        // 好大：读写超时
         if (first->running_id && 0 < first->transfer_profile.start_send_time && cur_time - first->transfer_profile.start_send_time >= first->transfer_profile.read_write_timeout) {
             xerror2(TSF"task read-write timeout, taskid:%_, , nStartSendTime=%_, nReadWriteTimeOut=%_",
                     first->task.taskid, first->transfer_profile.start_send_time / 1000, first->transfer_profile.read_write_timeout / 1000);
             socket_timeout_code = kEctLongReadWriteTimeout;
         }
 
+        // 好大：任务超时
         if (cur_time - first->start_task_time >= first->task_timeout) {
             __SingleRespHandle(first, kEctLocal, kEctLocalTaskTimeout, kTaskFailHandleTaskTimeout, longlink_->Profile());
             istasktimeout = true;
@@ -254,6 +259,7 @@ void LongLinkTaskManager::__RunOnTimeout() {
     }
 }
 
+// 好大：开始刚加入的 task
 void LongLinkTaskManager::__RunOnStartTask() {
     std::list<TaskProfile>::iterator first = lst_cmd_.begin();
     std::list<TaskProfile>::iterator last = lst_cmd_.end();

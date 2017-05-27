@@ -49,7 +49,7 @@ void StnCallBack::TrafficData(ssize_t _send, ssize_t _recv) {
         
 std::vector<std::string> StnCallBack::OnNewDns(const std::string& _host) {
     std::vector<std::string> vector;
-    vector.push_back("118.89.24.72");
+//    vector.push_back("118.89.24.72");
     return vector;
 }
 

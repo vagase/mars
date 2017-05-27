@@ -62,6 +62,12 @@ enum {
     kInactive,
 };
 
+/*
+ * 好大：
+ *          前台1分钟   前台10分钟  前台超过10分钟    后台活跃    后台不活跃 
+ * 任务      5 秒       10 秒      20 秒           30秒        5 分钟
+ * 长连接    15 秒      30 秒      4 分钟           5 分钟      10 分钟
+ */
 static unsigned long const sg_interval[][5]  = {
     {5,  10, 20,  30,  300},
     {15, 30, 240, 300, 600},
@@ -80,21 +86,30 @@ static int __CurActiveState(const ActiveLogic& _activeLogic) {
     return kForgroundOneMinute;
 }
 
+/*
+ * 好大：根据类型（任务，长连接，网络变化）+ 状态（前台1分钟，前台10分钟，前台超过10分钟，后台活跃，后台不活跃）  
+ */
 static unsigned long __Interval(int _type, const ActiveLogic& _activelogic) {
     unsigned long interval = sg_interval[_type][__CurActiveState(_activelogic)];
 
     if (kLongLinkConnect != _type) return interval;
-
+    
+    // 好大：针对长连接，后台不活跃 或者 前台活跃超过 10 分钟
     if (__CurActiveState(_activelogic) == kInactive || __CurActiveState(_activelogic) == kForgroundActive) {  // now - LastForegroundChangeTime>10min
+        // 好大：不活跃且没登录：一周
         if (!_activelogic.IsActive() && GetAccountInfo().username.empty()) {
             interval = kNoAccountInfoInactiveInterval;
             xwarn2(TSF"no account info and inactive, interval:%_", interval);
 
-        } else if (kNoNet == getNetInfo()) {
+        }
+        // 好大：没有网络：3倍 + 10 分钟
+        else if (kNoNet == getNetInfo()) {
             interval = interval * kNoNetSaltRate + kNoNetSaltRise;
             xinfo2(TSF"no net, interval:%0", interval);
 
-        } else if (GetAccountInfo().username.empty()) {
+        }
+        // 好大：活跃有网络 但是没有登录：2倍 + 5分钟 
+        else if (GetAccountInfo().username.empty()) {
             interval = interval * kNoAccountInfoSaltRate + kNoAccountInfoSaltRise;
             xinfo2(TSF"no account info, interval:%0", interval);
 
@@ -156,6 +171,7 @@ bool LongLinkConnectMonitor::NetworkChange() {
     return 0 == __IntervalConnect(kNetworkChangeConnect);
 }
 
+// 好大：如果长连接没有建立 or 连接断开的情况下，到达间隔的情况下自动重连；如果没到达间隔，等到达间隔后再重试
 unsigned long LongLinkConnectMonitor::__IntervalConnect(int _type) {
     if (LongLink::kConnecting == longlink_.ConnectStatus() || LongLink::kConnected == longlink_.ConnectStatus()) return 0;
 

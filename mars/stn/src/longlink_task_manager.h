@@ -98,7 +98,7 @@ class LongLinkTaskManager {
     MessageQueue::ScopeRegister     asyncreg_;
     std::list<TaskProfile>          lst_cmd_;
     uint64_t                        lastbatcherrortime_;   // ms
-    unsigned long                   retry_interval_;	//ms
+    unsigned long                   retry_interval_;	// 好大：所有任务重试的间隔，默认1秒钟 ms
     unsigned int                    tasks_continuous_fail_count_;
 
     LongLink*                       longlink_;

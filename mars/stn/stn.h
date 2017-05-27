@@ -132,10 +132,10 @@ enum {
 
 // -600 ~ -500
 enum {
-    kEctLongFirstPkgTimeout = -500,
-    kEctLongPkgPkgTimeout = -501,
-    kEctLongReadWriteTimeout = -502,
-    kEctLongTaskTimeout = -503,
+    kEctLongFirstPkgTimeout = -500,		// 好大：首包超时
+    kEctLongPkgPkgTimeout = -501,		// 好大：包包超时
+    kEctLongReadWriteTimeout = -502,	// 好大：读写超时
+    kEctLongTaskTimeout = -503,			// 好大：任务超时
 };
 
 // -600 ~ -500
@@ -161,7 +161,7 @@ enum {
 
     kEctNetMsgXPHandleBufferErr = -10504,
 
-    kEctDnsMakeSocketPrepared = -10606,
+    kEctDnsMakeSocketPrepared = -10606,			// 好大： DNS 解释失败，导致建立连接的时候 IP 地址列表为空
 };
 
 enum NetStatus {

@@ -40,7 +40,7 @@
 }
 
 - (IBAction)onButtonClick:(id)sender {
-    CGITask *helloCGI = [[CGITask alloc] initAll:ChannelType_All AndCmdId:kSayHello AndCGIUri:@"/mars/hello" AndHost:@"www.marsopen.cn"];
+    CGITask *helloCGI = [[CGITask alloc] initAll:ChannelType_All AndCmdId:kSayHello AndCGIUri:@"/mars/hello" AndHost:@"localhost"];
     [[NetworkService sharedInstance] startTask:helloCGI ForUI:self];
 }
 
