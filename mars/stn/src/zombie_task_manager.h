@@ -36,6 +36,7 @@ struct ZombieTask;
 namespace mars {
     namespace stn {
 
+// 好大：ZombieTaskManager 感觉是当任务 retry 之后，而且 timeout 还没有耗尽，对任务进行最后补救重试。增大 timeout 比较长、优先级比价低，不太敏感的数据获取成功概率
 class ZombieTaskManager {
   public:
     boost::function<void (const Task& _task)> fun_start_task_;

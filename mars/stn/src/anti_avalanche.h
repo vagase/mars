@@ -34,6 +34,7 @@ enum {
 	kFlowLimit = 2
 };
 
+// 好大：通过"频率"和"流量"两个方面防雪崩。
 class AntiAvalanche {
   public:
     AntiAvalanche(bool _isactive);

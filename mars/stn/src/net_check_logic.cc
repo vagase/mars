@@ -133,6 +133,7 @@ void NetCheckLogic::UpdateShortLinkInfo(unsigned int _continues_fail_count, bool
     }
 }
 
+// 好大：基本逻辑：最近八次坏，前八次好，就进入netcheck
 bool NetCheckLogic::__ShouldNetCheck() {
 
     bool ret = false;
@@ -141,9 +142,11 @@ bool NetCheckLogic::__ShouldNetCheck() {
 	uint32_t succ_count = 0;
 	uint32_t most_recent_shorttasks_status = 0;
 
+	// 好大：records 是 32 位，kMostRecentTaskStartN 是截取从右往左 0-7 位的数据，也就是最近的数据
 	EXTRACT_N_BITS(shortlink_taskstatus_item_.records, kMostRecentTaskStartN[0], kMostRecentTaskStartN[1], most_recent_shorttasks_status);
 	CAL_BIT_COUNT(most_recent_shorttasks_status, succ_count);
 
+    // 好大：如果最近8次，成功次数 < 3，认为 bad；如果成功次数 > 5 认为 good；那么正好是 3 - 5 呢？
 	bool is_shortlink_bad = succ_count < kCheckifBelowCount;
 	bool is_shortlink_good = succ_count > kCheckifAboveCount;
 	if (is_shortlink_bad) { // 最近八次坏，前八次好，就进入netcheck
@@ -152,8 +155,13 @@ bool NetCheckLogic::__ShouldNetCheck() {
 		xinfo2(TSF"netcheck: shortlink succ_count: %_, is most recent %_ times. valid_record_taskcount: %_.", succ_count, kMostRecentTaskStartN[1], valid_record_taskcount);
 		succ_count = 0;
 		uint32_t second_recent_shorttasks_status = 0;
-		EXTRACT_N_BITS(shortlink_taskstatus_item_.records, kSecondRecentTaskStartN[0], kSecondRecentTaskStartN[1], second_recent_shorttasks_status);
+
+        // 好大：records 是 32 位，kSecondRecentTaskStartN 是截取从右往左 8-15 位的数据，是次近的数据
+
+        EXTRACT_N_BITS(shortlink_taskstatus_item_.records, kSecondRecentTaskStartN[0], kSecondRecentTaskStartN[1], second_recent_shorttasks_status);
 		CAL_BIT_COUNT(second_recent_shorttasks_status, succ_count);
+
+        // 好大：如果次近8次，成功数 > 5次就需要检查？
 		shortlink_shouldcheck = succ_count > kCheckifAboveCount;
 		xinfo2(TSF"netcheck: shortlink_shouldcheck=%_, shortlink succ_count=%_, in sub-recent %_ times. ", shortlink_shouldcheck,
 				succ_count, kSecondRecentTaskStartN[1]);
@@ -186,6 +194,7 @@ bool NetCheckLogic::__ShouldNetCheck() {
 	ret = longlink_shouldcheck || shortlink_shouldcheck;
 	static int increment_steps = 0;
 	if (ret) {
+        // 好大：保持一定的时间间隔：base 5分钟，每 step 10分钟
 		 if (::gettickspan(last_netcheck_time_) < (kMinCheckTimeSpan + increment_steps * kCheckTimeSpanIncrementStep)) {
 			 ret = false;
 			 xinfo2(TSF"continous hit netcheck strategy, skip this. last_netcheck_time_=%_", last_netcheck_time_);

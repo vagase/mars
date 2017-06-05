@@ -98,6 +98,7 @@ void NetSourceTimerCheck::__StartCheck() {
 
     if (asyncpost_ != MessageQueue::KNullPost) return;
 
+    // 好大：启动一个每 2分半钟 触发一次的计时器。
     asyncpost_ = MessageQueue::AsyncInvokePeriod(kTimeCheckPeriod, kTimeCheckPeriod, boost::bind(&NetSourceTimerCheck::__Check, this), asyncreg_.Get());
 
 }
@@ -105,8 +106,9 @@ void NetSourceTimerCheck::__StartCheck() {
 void NetSourceTimerCheck::__Check() {
 
     IPSourceType pre_iptype = longlink_.Profile().ip_type;
-    if (kIPSourceDebug == pre_iptype || kIPSourceNULL == pre_iptype
-    		|| kIPSourceNewDns == pre_iptype || kIPSourceDNS == pre_iptype) {
+
+    // 好大：只有 iptype 是 kIPSourceProxy 或 kIPSourceBackup 才检查
+    if (kIPSourceDebug == pre_iptype || kIPSourceNULL == pre_iptype || kIPSourceNewDns == pre_iptype || kIPSourceDNS == pre_iptype) {
     	return;
     }
 
@@ -163,6 +165,7 @@ void NetSourceTimerCheck::__Run(const std::string& _host) {
 
 		xassert2(fun_time_check_suc_);
 
+        // 对应 host 新的 IP 可以连接成功，那么通知 长连接 断开，用新的 IP 重新建立连接。
 		if (fun_time_check_suc_) {
 			// reset the long link
 			fun_time_check_suc_();
@@ -172,7 +175,7 @@ void NetSourceTimerCheck::__Run(const std::string& _host) {
 
 }
 
-
+// 好大：测试与服务器间的连接+心跳是否成功
 bool NetSourceTimerCheck::__TryConnnect(const std::string& _host) {
     std::vector<std::string> ip_vec;
 
@@ -181,6 +184,7 @@ bool NetSourceTimerCheck::__TryConnnect(const std::string& _host) {
     if (ip_vec.empty()) dns_util_.GetDNS().GetHostByName(_host, ip_vec);
     if (ip_vec.empty()) return false;
 
+    // 好大：只有 host 对应的 IP 发生了变化才检查
     for (std::vector<std::string>::iterator iter = ip_vec.begin(); iter != ip_vec.end(); ++iter) {
     	if (*iter == longlink_.Profile().ip) {
     		return false;
@@ -236,8 +240,7 @@ bool NetSourceTimerCheck::__TryConnnect(const std::string& _host) {
 
     speed_item.CloseSocket();
 
-
-
+    // 好大：如果服务器能够连接成功并且心跳 PING/PONG，那么将服务器从屏蔽列表中移除。
     if (kLongLinkSpeedTestSuc == speed_item.GetState()) {
         net_source_->RemoveLongBanIP(speed_item.GetIP());
         return true;
@@ -249,6 +252,7 @@ bool NetSourceTimerCheck::__TryConnnect(const std::string& _host) {
 void NetSourceTimerCheck::__OnActiveChanged(bool _is_active) {
     xdebug2(TSF"_is_active:%0", _is_active);
 
+    // 好大：App从后台到前台开始检查，前台到后台就停止。
     if (_is_active) {
         __StartCheck();
     } else {

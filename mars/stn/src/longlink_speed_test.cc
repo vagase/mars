@@ -45,6 +45,7 @@ LongLinkSpeedTestItem::LongLinkSpeedTestItem(const std::string& _ip, uint16_t _p
     AutoBuffer body;
     longlink_noop_req_body(body);
 
+    // 好大：发送的心跳包啊
     longlink_pack(longlink_noop_cmdid(), Task::kNoopTaskID, body.Ptr(), body.Length(), req_ab_);
     req_ab_.Seek(0, AutoBuffer::ESeekStart);
 
@@ -171,15 +172,19 @@ int LongLinkSpeedTestItem::__HandleSpeedTestReq() {
         xdebug2(TSF"send length:%0", nwrite);
         req_ab_.Seek(nwrite, AutoBuffer::ESeekCur);
 
+        // 好大：心跳包没有发送完毕，还要继续发送
         if (req_ab_.Length() - req_ab_.Pos() <= 0) {
             return  kLongLinkSpeedTestResp;
-        } else {
+        }
+        // 好大：心跳包发送完毕，等到 response
+        else {
             return kLongLinkSpeedTestReq;
         }
     }
 }
 
 int LongLinkSpeedTestItem::__HandleSpeedTestResp() {
+    // 好大：response buff 自动扩容
     if (resp_ab_.Capacity() - resp_ab_.Pos() <= 0) {
         resp_ab_.AddCapacity(resp_ab_.Capacity() == 0 ? 1024 : resp_ab_.Capacity());
     }
@@ -203,10 +208,14 @@ int LongLinkSpeedTestItem::__HandleSpeedTestResp() {
         if (LONGLINK_UNPACK_FALSE == nRet) {
             xerror2(TSF"longlink_unpack false");
             return kLongLinkSpeedTestFail;
-        } else if (LONGLINK_UNPACK_CONTINUE == nRet) {
+        }
+        // 好大：response 包还没结束
+        else if (LONGLINK_UNPACK_CONTINUE == nRet) {
             xdebug2(TSF"not recv an package,continue recv, resp_ab_.Lenght():%0", resp_ab_.Length());
             return kLongLinkSpeedTestResp;
-        } else if (kCmdIdOutOfBand == anCmdID) {
+        }
+        // 好大：服务器带宽不够了，其实并不是这个 test 会发送大量的数据从而测试网路速度，而是发送正常的心跳包给服务器，服务器通过 response 告诉 client 当前连接怎么样。
+        else if (kCmdIdOutOfBand == anCmdID) {
             uint32_t nType = ((uint32_t*)body.Ptr(16))[0];
             uint32_t nTime = ((uint32_t*)body.Ptr(16))[1];
             nType = ntohl(nType);
@@ -215,7 +224,9 @@ int LongLinkSpeedTestItem::__HandleSpeedTestResp() {
 
             resp_ab_.Reset();
             return kLongLinkSpeedTestOOB;
-        } else if (longlink_noop_resp_cmdid() == anCmdID && Task::kNoopTaskID == anSeq) {
+        }
+        // 好大：response 是一个正常的心跳包，表示 test success
+        else if (longlink_noop_resp_cmdid() == anCmdID && Task::kNoopTaskID == anSeq) {
             return kLongLinkSpeedTestSuc;
         } else {
             xassert2(false);
@@ -249,6 +260,7 @@ bool LongLinkSpeedTest::GetFastestSocket(int& _fdSocket, std::string& _strIp, un
 
     std::vector<LongLinkSpeedTestItem*> speedTestItemVec;
 
+    // 好大：这里依次 connect 所有的 IP & PORT
     for (std::vector<IPPortItem>::iterator iter = ipItemVec.begin(); iter != ipItemVec.end(); ++iter) {
         LongLinkSpeedTestItem* item = new LongLinkSpeedTestItem((*iter).str_ip, (*iter).port);
         speedTestItemVec.push_back(item);
@@ -257,6 +269,7 @@ bool LongLinkSpeedTest::GetFastestSocket(int& _fdSocket, std::string& _strIp, un
     int tryCount = 0;
     bool loopShouldBeStop = false;
 
+    // 好大：同时并行给所有的 IP&PORT 发送心跳包，最先返回的认为是最快的。
     while (!loopShouldBeStop) {
         selector_.PreSelect();
 

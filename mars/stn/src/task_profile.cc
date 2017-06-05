@@ -38,24 +38,30 @@ void __SetLastFailedStatus(std::list<TaskProfile>::iterator _it){
     return  _first_pkg_timeout + 1000 * kMaxRecvLen / rate;
 }
 
+// 好大：计算首包超时的时间，整体而言，如果知道网络状况好，那么首包超时时间应该比不知道网络状况（或者网络状况差）的时候要短。
 uint64_t  __FirstPkgTimeout(int64_t  _init_first_pkg_timeout, size_t _sendlen, int _send_count, int _dynamictimeout_status) {
     xassert2(3600 * 1000 >= _init_first_pkg_timeout, TSF"server_cost:%_ ", _init_first_pkg_timeout);
     
     uint64_t ret = 0;
     uint64_t task_delay = (kMobile != getNetInfo()) ? kWifiTaskDelay : kGPRSTaskDelay;
-    
+
+    // 好大：已知网络状态很好，而且没有设置首包超时时间，采用动态超时默认首包超时。这个超时比一般采用的默认超时 kBaseFirstPackageWifiTimeout／kBaseFirstPackageGPRSTimeout 要短
     if (_dynamictimeout_status == kExcellent && _init_first_pkg_timeout == 0) {
         ret = (kMobile != getNetInfo()) ? kDynTimeFirstPackageWifiTimeout : kDynTimeFirstPackageGPRSTimeout;
         ret += _send_count * task_delay;
     }
+    // 好大：动态超时还在计算中或者处在质量不是 excellent 的网络
     else{
         uint64_t rate = (kMobile != getNetInfo()) ? kWifiMinRate : kGPRSMinRate;
         uint64_t base_rw_timeout = (kMobile != getNetInfo()) ? kBaseFirstPackageWifiTimeout : kBaseFirstPackageGPRSTimeout;
         uint64_t max_rw_timeout = (kMobile != getNetInfo()) ? kMaxFirstPackageWifiTimeout : kMaxFirstPackageGPRSTimeout;
-        
+
+        // 好大：设置了首包超时时间
         if (0 < _init_first_pkg_timeout) {
             ret = _init_first_pkg_timeout + 1000 * _sendlen / rate;
-        } else {
+        }
+        // 好大：没有设置首包超时时间，采用默认的超时时间
+        else {
             ret =     base_rw_timeout + 1000 * _sendlen / rate;
             ret = ret < max_rw_timeout ? ret : max_rw_timeout;
         }

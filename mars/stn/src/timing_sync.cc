@@ -44,15 +44,18 @@ static int GetAlarmTime(bool _is_actived)
     //todo
     if (_is_actived && !IsLogoned())
     {
+        // 好大：用户没有登录的情况下且 App active，每4分钟 sync 一次
         time = UNLOGIN_SYNC_INTERVAL;
     }
     else
 	{
+        // 好大：用户登录的情况下，App active 90秒 sync 一次，App 非 active 30分钟 sync 一次
         time = _is_actived? ACTIVE_SYNC_INTERVAL : INACTIVE_SYNC_INTERVAL;
     }
 
     if (kNoNet == getNetInfo())
     {
+        // 好大：没有网路，时间延长 3 倍
         time *= NONET_SALT_RATE;
     }
 
@@ -72,6 +75,7 @@ TimingSync::~TimingSync()
     alarm_.Cancel();
 }
 
+// 好大：当App active 发生变化、网络发生变化 的时候重新 reset 计时器。
 void TimingSync::OnActiveChanged(bool _is_actived)
 {
     xdebug_function();
@@ -94,8 +98,10 @@ void TimingSync::OnNetworkChange()
 void TimingSync::OnLongLinkStatuChanged(LongLink::TLongLinkStatus _status)
 {
     xverbose_function();
+    // 好大：长连接连接成功了，就停止 sync timer了
     if (_status == LongLink::kConnected)
         alarm_.Cancel();
+    // 好大：长连接断开连接了，开始 sync timer
     else if (_status == LongLink::kDisConnected)
         alarm_.Start(GetAlarmTime(active_logic_.IsActive()));
 }

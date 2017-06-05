@@ -34,6 +34,7 @@
 namespace mars {
     namespace stn {
 
+// TimingSync 最终调用的是 RequestSync，在长连接断开、重连的时候，每隔一个间隔触发一次 sync。
 class TimingSync {
   public:
     TimingSync(ActiveLogic& _active_logic);

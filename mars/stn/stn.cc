@@ -40,6 +40,8 @@ Task::Task() {
     
     send_only = false;
     need_authed = false;
+
+    // 好大：默认都是需要从"流量"和"频率"两方面进行防雪崩的
     limit_flow = true;
     limit_frequency = true;
     

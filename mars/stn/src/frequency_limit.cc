@@ -45,18 +45,21 @@ FrequencyLimit::~FrequencyLimit()
 bool FrequencyLimit::Check(const mars::stn::Task& _task, const void* _buffer, int _len, unsigned int& _span) {
     xverbose_function();
 
+    // 好大：task 默认都需要检查的
     if (!_task.limit_frequency) return true;
 
     unsigned long time_cur = ::gettickcount();
     xassert2(time_cur >= itime_record_clear_);
     unsigned long interval = time_cur - itime_record_clear_;
 
+    // 好大：一个小时没有动静，需要重置状态
     if (RUN_CLEAR_RECORDS_INTERVAL_MINUTE <= interval) {
         xdebug2(TSF"__ClearRecord interval=%0, timeCur=%1, itimeRecordClear=%2", interval, time_cur, itime_record_clear_);
         itime_record_clear_ = time_cur;
         __ClearRecord();
     }
 
+    // 通过 adler32 校验算法，获取 hash 值
     unsigned long hash = ::adler32(0, (const unsigned char*)_buffer, _len);
     int find_index = __LocateIndex(hash);
 
@@ -64,6 +67,7 @@ bool FrequencyLimit::Check(const mars::stn::Task& _task, const void* _buffer, in
     	_span = __GetLastUpdateTillNow(find_index);
         __UpdateRecord(find_index);
 
+        // 好大：拥有相同 hash 值的包，如果 count > 150, 就触发雪崩了。为什么要这样做？
         if (!__CheckRecord(find_index)) {
             xerror2(TSF"Anti-Avalanche had Catch Task, Task Info: ptr=%0, cmdid=%1, need_authed=%2, cgi:%3, channel_select=%4, limit_flow=%5",
                     &_task, _task.cmdid, _task.need_authed, _task.cgi, _task.channel_select, _task.limit_flow);
@@ -94,6 +98,7 @@ void FrequencyLimit::__ClearRecord() {
         xassert2(time_cur >= first->time_last_update_);
         unsigned long interval = time_cur - first->time_last_update_;
 
+        // 好大：间隔在 10 分钟，且 count > 75 就不清除；如果 count > 99, 强行设置为 99。
         if (interval <= NOT_CLEAR_INTERCEPT_INTERVAL_MINUTE && NOT_CLEAR_INTERCEPT_COUNT <= first->count_) {
             int oldcount = first->count_;
 
@@ -127,6 +132,7 @@ void FrequencyLimit::__InsertRecord(unsigned long _hash) {
     temp.hash_ = _hash;
     temp.time_last_update_ = ::gettickcount();
 
+    // 好大：当达到最大值（30）之后，选择 time_last_update_ 最大（也就是最近）的记录删除
     if (MAX_RECORD_COUNT == iarr_record_.size()) {
         unsigned int del_index = 0;
 

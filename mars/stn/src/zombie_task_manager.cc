@@ -65,6 +65,7 @@ bool ZombieTaskManager::SaveTask(const Task& _task, unsigned int _taskcosttime)
     
     xinfo2(TSF"task end callback zombie savetask cgi:%_, cmdid:%_, taskid:%_", _task.cgi, _task.cmdid, _task.taskid);
 
+    // 启动一个计时器，每3秒钟检查一次，防止 task "死"在了队列里
     MessageQueue::SingletonMessage(false, asyncreg_.Get(),
                                     MessageQueue::Message((MessageQueue::MessageTitle_t)this,
                                     boost::bind(&ZombieTaskManager::__TimerChecker, this)),
@@ -146,6 +147,7 @@ void ZombieTaskManager::__StartTask()
     }
 }
 
+// 计时器每3秒钟调用一次
 void ZombieTaskManager::__TimerChecker()
 {
     xassert2(fun_callback_);
@@ -161,7 +163,9 @@ void ZombieTaskManager::__TimerChecker()
             xinfo2(TSF"task end callback zombie timeout cgi:%_, cmdid:%_, taskid:%_, err(%_, %_), cost:%_", it->task.cgi, it->task.cmdid, it->task.taskid, kEctLocal, kEctLocalTaskTimeout, cur_time - it->save_time);
             fun_callback_(kEctLocal,  kEctLocalTaskTimeout, kTaskFailHandleTaskEnd, it->task, (unsigned int)(cur_time - it->save_time));
             it = lsttask.erase(it);
-        } else if ((cur_time - it->save_time) >= RETRY_INTERVAL && (cur_time - netCoreLastStartTaskTime) >= RETRY_INTERVAL) {
+        }
+        // 好大：从进入 ZombieTaskManager 起一分钟以后，且距离上次netcore startTask调用一分钟起，在计时器检查时强制，再次尝试这个task，防止 task 完全"死"在队列里面了。
+        else if ((cur_time - it->save_time) >= RETRY_INTERVAL && (cur_time - netCoreLastStartTaskTime) >= RETRY_INTERVAL) {
             xinfo2(TSF"task start zombie cgi:%_, cmdid:%_, taskid:%_,", it->task.cgi, it->task.cmdid, it->task.taskid);
             it->task.total_timetout -= (cur_time - it->save_time);
             fun_start_task_(it->task);

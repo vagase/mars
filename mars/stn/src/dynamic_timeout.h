@@ -25,6 +25,7 @@
 #include <string>
 #include <sstream>
 
+// 三个状态表示：正在计算状态，很好的状态，很差的状态。
 enum DynamicTimeoutStatus {
     kEValuating = 1,
     kExcellent,
@@ -34,6 +35,7 @@ enum DynamicTimeoutStatus {
 namespace mars {
     namespace stn {
 
+// 好大：用于动态超时计算，比如首包超时时间
 class DynamicTimeout {
     
   public:

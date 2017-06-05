@@ -51,14 +51,14 @@
 #define NetStableTestCount (3)     //We think it's time to test after NetStableCount times heartbeat using MinHeartInterval
 
 //signalling transmits timeout related constants
-const static unsigned int kBaseFirstPackageWifiTimeout = 12*1000;
-const static unsigned int kBaseFirstPackageGPRSTimeout = 15*1000;
+const static unsigned int kBaseFirstPackageWifiTimeout = 12*1000;           // 好大：首包 WIFI 默认超时 12秒
+const static unsigned int kBaseFirstPackageGPRSTimeout = 15*1000;           // 好大：首包 移动网络 默认超时 15秒
 
-const static unsigned int kMaxFirstPackageWifiTimeout = 25*1000;
-const static unsigned int kMaxFirstPackageGPRSTimeout = 35*1000;
+const static unsigned int kMaxFirstPackageWifiTimeout = 25*1000;            // 好大：首包 WI-FI 最大超时 25秒
+const static unsigned int kMaxFirstPackageGPRSTimeout = 35*1000;            // 好大：首包 移动网络 最大超时 25秒
 
-const static unsigned int kGPRSMinRate = 3*1024;
-const static unsigned int kWifiMinRate = 10*1024;
+const static unsigned int kGPRSMinRate = 3*1024;                            // 好大：移动网络 最低网速 3K／秒
+const static unsigned int kWifiMinRate = 10*1024;                           // 好大：WIFI 最低网速 10K／秒
 
 const static unsigned int kWifiPackageInterval = 8*1000;
 const static unsigned int kGPRSPackageInterval = 12*1000;
@@ -69,23 +69,24 @@ const static unsigned int kGPRSTaskDelay = 3000;
 const static unsigned int kMaxRecvLen = 64*1024;
 
 //dynamic timeout related constants
-const static unsigned int kDynTimeSmallPackageLen = 3*1024;
-const static unsigned int kDynTimeMiddlePackageLen = 10*1024;
-const static unsigned int kDynTimeBigPackageLen = 30*1024;
+const static unsigned int kDynTimeSmallPackageLen = 3*1024;                 // 好大：小包 小于 3K
+const static unsigned int kDynTimeMiddlePackageLen = 10*1024;               // 好大：中包 大于 3K 小于 10K
+const static unsigned int kDynTimeBigPackageLen = 30*1024;                  // 好大：大包 大于 10K 小于 30K
+                                                                            // 好大：超大包 大于 30K
 
-const static unsigned int kDynTimeSmallPackageWifiCosttime = 500;
-const static unsigned int kDynTimeMiddlePackageWifiCosttime = 2*1000;
-const static unsigned int kDynTimeBigPackageWifiCosttime = 4*1000;
-const static unsigned int kDynTimeBiggerPackageWifiCosttime = 6*1000;
+const static unsigned int kDynTimeSmallPackageWifiCosttime = 500;           // 好大：小包 WIFI 最大耗时 500ms
+const static unsigned int kDynTimeMiddlePackageWifiCosttime = 2*1000;       // 好大：中包 WIFI 最大耗时 2s
+const static unsigned int kDynTimeBigPackageWifiCosttime = 4*1000;          // 好大：大包 WIFI 最大耗时 4s
+const static unsigned int kDynTimeBiggerPackageWifiCosttime = 6*1000;       // 好大：超大包 WIFI 最大耗时 6s
 
 
-const static unsigned int kDynTimeSmallPackageGPRSCosttime = 1*1000;
-const static unsigned int kDynTimeMiddlePackageGPRSCosttime = 3*1000;
-const static unsigned int kDynTimeBigPackageGPRSCosttime = 5*1000;
-const static unsigned int kDynTimeBiggerPackageGPRSCosttime = 7*1000;
+const static unsigned int kDynTimeSmallPackageGPRSCosttime = 1*1000;        // 好大：小包 移动网络 最大耗时 1s
+const static unsigned int kDynTimeMiddlePackageGPRSCosttime = 3*1000;       // 好大：中包 移动网络 最大耗时 3s
+const static unsigned int kDynTimeBigPackageGPRSCosttime = 5*1000;          // 好大：大包 移动网络 最大耗时 5s
+const static unsigned int kDynTimeBiggerPackageGPRSCosttime = 7*1000;       // 好大：超大包 移动网络 最大耗时 7s
 
-const static unsigned int kDynTimeFirstPackageWifiTimeout = 7*1000;
-const static unsigned int kDynTimeFirstPackageGPRSTimeout = 10*1000;
+const static unsigned int kDynTimeFirstPackageWifiTimeout = 7*1000;         // 好大：网络很好的时候，WIFI下 采用的动态首包超时时间 7秒，比 kBaseFirstPackageWifiTimeout 要小5秒
+const static unsigned int kDynTimeFirstPackageGPRSTimeout = 10*1000;        // 好大：网络很好的时候，移动网络下 采用的动态首包超时时间 10秒，比 kBaseFirstPackageWifiTimeout 要小5秒
 const static unsigned int kDynTimeExtraWifiTimeout = 10*1000;
 const static unsigned int kDynTimeExtraGPRSTimeout = 15*1000;
 
@@ -97,10 +98,10 @@ const static unsigned int kDynTimeTaskFailedPkgLen = 0xffffffff;
 
 const static int kDynTimeTaskFailedTag = -1;
 const static int KDynTimeTaskNormalTag = 0;
-const static int kDynTimeTaskMeetExpectTag = 1;
-const static int kDynTimeTaskMidPkgMeetExpectTag = 2;
-const static int kDynTimeTaskBigPkgMeetExpectTag = 3;
-const static int kDynTimeTaskBiggerPkgMeetExpectTag = 4;
+const static int kDynTimeTaskMeetExpectTag = 1;                 // 好大：小包 耗时复合预期
+const static int kDynTimeTaskMidPkgMeetExpectTag = 2;           // 好大：中包 耗时复合预期
+const static int kDynTimeTaskBigPkgMeetExpectTag = 3;           // 好大：大包 耗时复合预期
+const static int kDynTimeTaskBiggerPkgMeetExpectTag = 4;        // 好大：超大包 耗时复合预期
 
 //longlink_task_manager
 const static unsigned int kFastSendUseLonglinkTaskCntLimit = 0;

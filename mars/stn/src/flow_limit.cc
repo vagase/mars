@@ -27,7 +27,9 @@
 #include "mars/stn/stn.h"
 
 #if true
+// 好大：非 active 状况下，2M 每小时
 static const int kInactiveSpeed = (2 * 1024 * 1024 / 3600);
+// 好大：active 状况下，8M 每小时
 static const int kActiveSpeed = (8 * 1024 * 1024 / 3600);
 static const int kInactiveMinvol = (6 * 1024 * 1024);
 static const int kMaxVol = (8 * 1024 * 1024);
@@ -52,6 +54,7 @@ FlowLimit::~FlowLimit()
 bool FlowLimit::Check(const mars::stn::Task& _task, const void* _buffer, int _len) {
     xverbose_function();
 
+    // 好大：task 默认的都要检查的
     if (!_task.limit_flow) {
         return true;
     }
@@ -72,6 +75,7 @@ bool FlowLimit::Check(const mars::stn::Task& _task, const void* _buffer, int _le
 void FlowLimit::Active(bool _isactive) {
     __FlashCurVol();
 
+    // 好大：如果是 inactive 拉高当前的水位，相当于切换到 inactive 状态下智能有 kMaxVol - kInactiveMinvol = 2M 的可用空间了
     if (!_isactive) {
         xdebug2(TSF"iCurFunnelVol=%0, INACTIVE_MIN_VOL=%1", cur_funnel_vol_, kInactiveMinvol);
 

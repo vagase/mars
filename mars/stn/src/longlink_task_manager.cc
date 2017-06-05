@@ -249,10 +249,12 @@ void LongLinkTaskManager::__RunOnTimeout() {
 
     if (0 != socket_timeout_code) {
         dynamic_timeout_.CgiTaskStatistic("", kDynTimeTaskFailedPkgLen, 0);
+        // 好大：首包超时，包包超时或者读写超时，都走 kTaskFailHandleDefault，比如加入 ZombieTaskManager
         __BatchErrorRespHandle(kEctNetMsgXP, socket_timeout_code, kTaskFailHandleDefault, 0, longlink_->Profile());
         xassert2(fun_notify_network_err_);
         fun_notify_network_err_(__LINE__, kEctNetMsgXP, socket_timeout_code, longlink_->Profile().ip,  longlink_->Profile().port);
     } else if (istasktimeout) {
+        // 好大：任务超时，都走 kTaskFailHandleDefault，比如加入 ZombieTaskManager
         __BatchErrorRespHandle(kEctNetMsgXP, kEctLongTaskTimeout, kTaskFailHandleDefault, 0, longlink_->Profile());
         //        xassert2(funNotifyNetworkError);
         //        funNotifyNetworkError(__LINE__, ectNetMsgXP, ectNetMsgXP_TaskTimeout, longlink_->IP(),  longlink_->Port());
@@ -394,9 +396,11 @@ bool LongLinkTaskManager::__SingleRespHandle(std::list<TaskProfile>::iterator _i
     uint64_t curtime =  gettickcount();
     size_t receive_data_size = _it->transfer_profile.receive_data_size;
     size_t received_size = _it->transfer_profile.received_size;
-    
+
+    // 好大：kEctOK 总是和 kTaskFailHandleNoError 配合使用的
     xassert2((kEctOK == _err_type) == (kTaskFailHandleNoError == _fail_handle), TSF"type:%_, handle:%_", _err_type, _fail_handle);
 
+    // 好大：1. 任务不能再重试 2. 任务成功了 3. 任务失败处理为：kTaskFailHandleTaskEnd 或 kTaskFailHandleTaskTimeout 都将移除任务队列；但之后可能加入 ZombieTaskManager 进行最后但重试
     if (0 >= _it->remain_retry_count || kEctOK == _err_type || kTaskFailHandleTaskEnd == _fail_handle || kTaskFailHandleTaskTimeout == _fail_handle) {
         xlog2(kEctOK == _err_type ? kLevelInfo : kLevelWarn, TSF"task end callback  long cmdid:%_, err(%_, %_, %_), ", _it->task.cmdid, _err_type, _err_code, _fail_handle)
         (TSF"svr(%_:%_, %_, %_), ", _connect_profile.ip, _connect_profile.port, IPSourceTypeString[_connect_profile.ip_type], _connect_profile.host)
@@ -509,6 +513,7 @@ void LongLinkTaskManager::__OnResponse(ErrCmdType _error_type, int _error_code, 
     
     if (kEctOK != _error_type) {
         xwarn2(TSF"task error, taskid:%_, cmdid:%_, error_type:%_, error_code:%_", _taskid, _cmdid, _error_type, _error_code);
+        // 好大：kTaskFailHandleDefault 走默认错误处理，比如加入 ZombieTaskManager
         __BatchErrorRespHandle(_error_type, _error_code, kTaskFailHandleDefault, 0, _connect_profile);
         return;
     }
@@ -545,6 +550,8 @@ void LongLinkTaskManager::__OnResponse(ErrCmdType _error_type, int _error_code, 
         {
             xassert2(fun_notify_session_timeout_);
             xwarn2(TSF"task decode error session timeout taskid:%_, cmdid:%_, cgi:%_", it->task.taskid, it->task.cmdid, it->task.cgi);
+
+            // 好大：调用其实是 NetCore::_OnSessionTimeout, 然后调用 ShortLinkTaskManager、LongLinkTaskManager OnSessionTimeout，-> kTaskFailHandleSessionTimeout
             fun_notify_session_timeout_(err_code, it->task.taskid);
         }
             break;

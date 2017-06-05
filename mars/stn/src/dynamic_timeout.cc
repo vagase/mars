@@ -100,10 +100,12 @@ void DynamicTimeout::__StatusSwitch(std::string _cgi_uri, int _task_status) {
             dyntime_failed_normal_count_.set();
         }
     }
-    
+
+    // 好大：修正 index，如果到末尾了，则重新指向开始；只记录最近 10 次的结果。
     dyntime_fncount_pos_ = ++dyntime_fncount_pos_ >= dyntime_failed_normal_count_.size() ? 0 : dyntime_fncount_pos_;
     
     switch (_task_status) {
+        // 好大：中包、大包
         case kDynTimeTaskMidPkgMeetExpectTag:
         case kDynTimeTaskBigPkgMeetExpectTag:
         case kDynTimeTaskBiggerPkgMeetExpectTag:
@@ -113,6 +115,7 @@ void DynamicTimeout::__StatusSwitch(std::string _cgi_uri, int _task_status) {
             }
         }
         /* no break, next case*/
+        // 好大：小包
         case kDynTimeTaskMeetExpectTag:
         {
             if (dyntime_status_ == kEValuating) {
@@ -122,6 +125,7 @@ void DynamicTimeout::__StatusSwitch(std::string _cgi_uri, int _task_status) {
             dyntime_failed_normal_count_.set(dyntime_fncount_pos_);
         }
             break;
+        // 好大：成功，但是没有达到预期标准
         case KDynTimeTaskNormalTag:
         {
             if (dyntime_status_ == kEValuating) {
@@ -132,6 +136,7 @@ void DynamicTimeout::__StatusSwitch(std::string _cgi_uri, int _task_status) {
             dyntime_failed_normal_count_.set(dyntime_fncount_pos_);
         }
             break;
+        // 好大：失败
         case kDynTimeTaskFailedTag:
         {
             dyntime_continuous_good_count_ = 0;
@@ -146,10 +151,12 @@ void DynamicTimeout::__StatusSwitch(std::string _cgi_uri, int _task_status) {
     switch (dyntime_status_) {
         case kEValuating:
         {
+            // 好大：连续小包复合高质量标准数 > 10 且 最近 5 分钟内有中大包复合预期，状态：完美
             if (dyntime_continuous_good_count_ >= kDynTimeMaxContinuousExcellentCount && (gettickcount() - dyntime_latest_bigpkg_goodtime_) <= kDynTimeCountExpireTime) {
                 xassert2(kDynTimeMaxContinuousExcellentCount >= 10, TSF"max_continuous_good_count:%_", kDynTimeMaxContinuousExcellentCount);
                 dyntime_status_ = kExcellent;
             }
+            // 好大：正在计算的时候，继续有不达标的，标记为 bad
             else if (dyntime_failed_normal_count_.count() <= kDynTimeMinNormalPkgCount){
                 xassert2(kDynTimeMinNormalPkgCount < dyntime_failed_normal_count_.size(), TSF"DYNTIME_MIN_NORMAL_PKG_COUNT:%_, dyntime_failed_normal_count_:%_", kDynTimeMinNormalPkgCount, dyntime_failed_normal_count_.size());
                 dyntime_status_ = kBad;
@@ -159,6 +166,7 @@ void DynamicTimeout::__StatusSwitch(std::string _cgi_uri, int _task_status) {
             break;
         case kExcellent:
         {
+            // 好大：本来是很好的状态，突然有没有达标的，重新计算状态
             if (dyntime_continuous_good_count_ == 0 && dyntime_latest_bigpkg_goodtime_ == 0){
                 dyntime_status_ = kEValuating;
             }
@@ -166,6 +174,7 @@ void DynamicTimeout::__StatusSwitch(std::string _cgi_uri, int _task_status) {
             break;
         case kBad:
         {
+            // 连续不达标 6 次了，再次重新开始计算？
             if (dyntime_failed_normal_count_.count() > kDynTimeMinNormalPkgCount) {
                 xassert2(kDynTimeMinNormalPkgCount < dyntime_failed_normal_count_.size(), TSF"DYNTIME_MIN_NORMAL_PKG_COUNT:%_, dyntime_failed_normal_count_:%_", kDynTimeMinNormalPkgCount, dyntime_failed_normal_count_.size());
                 dyntime_status_ = kEValuating;

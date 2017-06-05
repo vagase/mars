@@ -343,6 +343,8 @@ void ShortLinkTaskManager::__OnResponse(ShortLinkInterface* _worker, ErrCmdType 
             dynamic_timeout_.CgiTaskStatistic(it->task.cgi, kDynTimeTaskFailedPkgLen, 0);
             __SetLastFailedStatus(it);
         }
+
+        // 好大：kTaskFailHandleDefault 走默认错误处理，比如加入 ZombieTaskManager
         __SingleRespHandle(it, _err_type, _status, kTaskFailHandleDefault, body.get().Length(), _conn_profile);
         return;
 
@@ -487,9 +489,11 @@ bool ShortLinkTaskManager::__SingleRespHandle(std::list<TaskProfile>::iterator _
 
     uint64_t curtime =  gettickcount();
     _it->transfer_profile.connect_profile = _connect_profile;
-    
+
+    // 好大：kEctOK 总是和 kTaskFailHandleNoError 配合使用的
     xassert2((kEctOK == _err_type) == (kTaskFailHandleNoError == _fail_handle), TSF"type:%_, handle:%_", _err_type, _fail_handle);
 
+    // 好大：1. 任务不能再重试 2. 任务成功了 3. 任务失败处理为：kTaskFailHandleTaskEnd 或 kTaskFailHandleTaskTimeout 都将移除任务队列；但之后可能加入 ZombieTaskManager 进行最后但重试
     if (0 >= _it->remain_retry_count || kEctOK == _err_type || kTaskFailHandleTaskEnd == _fail_handle || kTaskFailHandleTaskTimeout == _fail_handle) {
         xlog2(kEctOK == _err_type ? kLevelInfo : kLevelWarn, TSF"task end callback short cmdid:%_, err(%_, %_, %_), ", _it->task.cmdid, _err_type, _err_code, _fail_handle)
         (TSF"svr(%_:%_, %_, %_), ", _connect_profile.ip, _connect_profile.port, IPSourceTypeString[_connect_profile.ip_type], _connect_profile.host)

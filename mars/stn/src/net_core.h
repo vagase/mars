@@ -68,9 +68,9 @@ class NetCore {
     SINGLETON_INTRUSIVE(NetCore, new NetCore, NetCore::__Release);
 
   public:
-    boost::function<void (Task& _task)> task_process_hook_;
-    boost::function<int (int _from, ErrCmdType _err_type, int _err_code, int _fail_handle, const Task& _task)> task_callback_hook_;
-    boost::signals2::signal<void (uint32_t _cmdid, const AutoBuffer& _buffer)> push_preprocess_signal_;
+    boost::function<void (Task& _task)> task_process_hook_;                                                                         // 好大：StartTask 时候的 hook 函数，仅仅是 hook 不对流程发生副作用
+    boost::function<int (int _from, ErrCmdType _err_type, int _err_code, int _fail_handle, const Task& _task)> task_callback_hook_; // 好大：任务回调时候的 hook 函数，发生副作用。如果返回值是 0，则会不执行后面的逻辑。
+    boost::signals2::signal<void (uint32_t _cmdid, const AutoBuffer& _buffer)> push_preprocess_signal_;                             // 好大：有 push 消息时候的预处理
 
   public:
     void    StartTask(const Task& _task);
@@ -119,20 +119,20 @@ class NetCore {
   private:
     MessageQueue::MessageQueueCreater   messagequeue_creater_;
     MessageQueue::ScopeRegister         asyncreg_;
-    NetSource*                          net_source_;
-    NetCheckLogic*                      netcheck_logic_;
-    AntiAvalanche*                      anti_avalanche_;
+    NetSource*                          net_source_;            // 好大：包括地址源，host, IP X PORT
+    NetCheckLogic*                      netcheck_logic_;        // 好大：在长连接、短连接与服务器 send/recv 的时候，不断本地更新交互结果。在判断需要检查网络状况的时候，获取网络通信质量的各项指标：RTT，DNS time，error rate 等。
+    AntiAvalanche*                      anti_avalanche_;        // 好大：从"频率"和"流量"两个方面，进行雪崩检测，说白了为了控制客户端不要发送太猛。如果不加控制，某个机制（可能是bug）一旦触发，使得所有客户端在某个点上一起猛发，服务端就爆炸了。
     
-    DynamicTimeout*                     dynamic_timeout_;
+    DynamicTimeout*                     dynamic_timeout_;       // 好大：动态超时计算，比如首包超时时间
     ShortLinkTaskManager*               shortlink_task_manager_;
     int                                 shortlink_error_count_;
 
 #ifdef USE_LONG_LINK
-    ZombieTaskManager*                  zombie_task_manager_;
+    ZombieTaskManager*                  zombie_task_manager_;   // 好大：ZombieTaskManager 感觉是当任务 retry 之后，而且 timeout 还没有耗尽，对任务进行最后补救重试。增大 timeout 比较长、优先级比价低，不太敏感的数据获取成功概率
     LongLinkTaskManager*                longlink_task_manager_;
-    SignallingKeeper*                   signalling_keeper_;
-    NetSourceTimerCheck*                netsource_timercheck_;
-    TimingSync*                         timing_sync_;
+    SignallingKeeper*                   signalling_keeper_;     // 好大：可以应用层调用 KeepSignalling／StopSignalling 手动控制，再一段时间内定时给服务器发送数据包，command id 为 signal_keep_cmdid() 也是由应用层控制。
+    NetSourceTimerCheck*                netsource_timercheck_;  // 好大：用来检查长连接 host 对应的 IP 发生变化情况先，需要重新建立长连接。
+    TimingSync*                         timing_sync_;           // 好大：在长连接没有建立成功之前，启动定时发送 syncRequest 的 timer，目的是为了如果长连接一直没建立好，起码还能手动 sync 一下（比如通过短连接）。
 #endif
 
     bool                                shortlink_try_flag_;

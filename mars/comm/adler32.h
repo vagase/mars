@@ -12,6 +12,7 @@ extern "C"
 {
 #endif
 
+// 好大：adler32 是一种类似于 crc 的校验算法 https://en.wikipedia.org/wiki/Adler-32
 unsigned long adler32(unsigned long adler, const unsigned char* buf, unsigned int len);
 unsigned long adler32_combine(unsigned long adler1, unsigned long adler2, unsigned long len2);
 

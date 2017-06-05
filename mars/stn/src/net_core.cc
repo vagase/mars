@@ -180,6 +180,7 @@ NetCore::NetCore()
     longlink_task_manager_->LongLinkChannel().SignalConnection.connect(boost::bind(&TimingSync::OnLongLinkStatuChanged, timing_sync_, _1));
     longlink_task_manager_->LongLinkChannel().SignalConnection.connect(boost::bind(&NetCore::__OnLongLinkConnStatusChange, this, _1));
 
+    // 好大：为什么只有 Apple 平台需要 reset？
 #ifdef __APPLE__
     longlink_task_manager_->getLongLinkConnectMonitor().fun_longlink_reset_ = boost::bind(&NetCore::__ResetLongLink, this);
 #endif
@@ -274,7 +275,8 @@ void NetCore::StartTask(const Task& _task) {
         OnTaskEnd(task.taskid, task.user_context, kEctLocal, kEctLocalChannelSelect);
         return;
     }
-    
+
+    // 好大：如果 task 对网路敏感，且当前网络并没有，直接返回错误。
     if (task.network_status_sensitive && kNoNet ==::getNetInfo()
 #ifdef USE_LONG_LINK
         && LongLink::kConnected != longlink_task_manager_->LongLinkChannel().ConnectStatus()
@@ -289,6 +291,7 @@ void NetCore::StartTask(const Task& _task) {
 
 #ifdef USE_LONG_LINK
 
+    // 好大：如果是用长连接发送。发现重连接断开了，App处于前台且在前台15分钟了，重新建立长连接。
     if (LongLink::kConnected != longlink_task_manager_->LongLinkChannel().ConnectStatus()
             && (Task::kChannelLong & task.channel_select) && SINGLETON_STRONG(ActiveLogic)->IsForeground()
 
@@ -300,6 +303,8 @@ void NetCore::StartTask(const Task& _task) {
     xgroup2() << group;
 
     switch (task.channel_select) {
+
+    // 好大：如果是选用长短连接都可以的策略，那么满足一下条件则使用长连接：1. 长连接处于连接状态；2. 如果 task channel_strategy 是 kChannelFastStrategy，要求更严格一点，需要 longlink_task_manager_ 没有其他正在执行的任务，以免产生等待的延时。
     case Task::kChannelBoth: {
 
 #ifdef USE_LONG_LINK
@@ -347,7 +352,8 @@ void NetCore::StartTask(const Task& _task) {
 
 void NetCore::StopTask(uint32_t _taskid) {
    ASYNC_BLOCK_START
-    
+
+   // 好大：StopTask 的时候，是在 longlink_task_manager_，zombie_task_manager_，shortlink_task_manager_ 依次调用 StopTask， 直到成功为止。
 #ifdef USE_LONG_LINK
     if (longlink_task_manager_->StopTask(_taskid)) return;
     if (zombie_task_manager_->StopTask(_taskid)) return;
@@ -422,7 +428,8 @@ void NetCore::OnNetworkChange() {
         xassert2(false);
         break;
     }
-    
+
+    // 好大：当网络发生变化的时候，与网络相关的资源都需要重置，比如 IP 地址，动态超时等等
 #ifdef USE_LONG_LINK
     netsource_timercheck_->CancelConnect();
 #endif
@@ -454,6 +461,8 @@ void NetCore::StopSignal() {
 }
 
 #ifdef USE_LONG_LINK
+
+// 好大：为什么只有 Apple 平台需要 reset？
 #ifdef __APPLE__
 void NetCore::__ResetLongLink() {
     SYNC2ASYNC_FUNC(boost::bind(&NetCore::__ResetLongLink, this));
@@ -476,6 +485,7 @@ void NetCore::RedoTasks() {
 
     net_source_->ClearCache();
 
+   // 好大：RedoTasks 需要重置长连接，然后在 redo tasks。
 #ifdef USE_LONG_LINK
     longlink_task_manager_->LongLinkChannel().Disconnect(LongLink::kReset);
     longlink_task_manager_->RedoTasks();
@@ -498,6 +508,7 @@ bool NetCore::LongLinkIsConnected() {
     return false;
 }
 
+// 好大：给 long_task_manager，zombie_task_manager，short_task_manager 的 callback，用以通知各个任务的执行状态。
 int NetCore::__CallBack(int _from, ErrCmdType _err_type, int _err_code, int _fail_handle, const Task& _task, unsigned int _taskcosttime) {
 
 	if (task_callback_hook_ && 0 == task_callback_hook_(_from, _err_type, _err_code, _fail_handle, _task)) {
@@ -510,6 +521,7 @@ int NetCore::__CallBack(int _from, ErrCmdType _err_type, int _err_code, int _fai
 
     if (kCallFromZombie == _from) return OnTaskEnd(_task.taskid, _task.user_context, _err_type, _err_code);
 
+    // 好大：当一个 task 失败的时候，满足以下几点就加入到 zombie 队列中：1. _fail_handle 不是 kTaskFailHandleTaskEnd；2. 不是 zombie 队列中 start；3. 非 network_status_sensitive；4. task total_timetout 还没有耗尽
 #ifdef USE_LONG_LINK
     if (!zombie_task_manager_->SaveTask(_task, _taskcosttime))
 #endif
@@ -520,7 +532,8 @@ int NetCore::__CallBack(int _from, ErrCmdType _err_type, int _err_code, int _fai
 
 void NetCore::__OnShortLinkResponse(int _status_code) {
     if (_status_code == 301 || _status_code == 302 || _status_code == 307) {
-        
+
+        // 好大：这里的代码是没有写完吧？
 #ifdef USE_LONG_LINK
         LongLink::TLongLinkStatus longlink_status = longlink_task_manager_->LongLinkChannel().ConnectStatus();
         unsigned int continues_fail_count = longlink_task_manager_->GetTasksContinuousFailCount();
@@ -545,6 +558,7 @@ void NetCore::__OnPush(uint32_t _cmdid, uint32_t _taskid, const AutoBuffer& _buf
     }
 }
 
+// 好大：用于长短连接，反馈 IP&PORT 通信质量
 void NetCore::__OnLongLinkNetworkError(int _line, ErrCmdType _err_type, int _err_code, const std::string& _ip, uint16_t _port) {
     SYNC2ASYNC_FUNC(boost::bind(&NetCore::__OnLongLinkNetworkError, this, _line, _err_type,  _err_code, _ip, _port));
     xassert2(MessageQueue::CurrentThreadMessageQueue() == messagequeue_creater_.GetMessageQueue());

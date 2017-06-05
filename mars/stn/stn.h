@@ -76,7 +76,7 @@ public:
     bool    limit_flow;  // user
     bool    limit_frequency;  // user
     
-    bool        network_status_sensitive;  // user
+    bool        network_status_sensitive;  // user 好大：对网络状况敏感，只会在网路状况好的时候发送。比如不支持在网络不稳定的时候，待网络连接上的时候再发送。
     int32_t     channel_strategy;
     int32_t     priority;  // user
     
@@ -92,9 +92,9 @@ public:
 
 enum TaskFailHandleType {
 	kTaskFailHandleNormal = 0,
-	kTaskFailHandleNoError = 0,
+	kTaskFailHandleNoError = 0,         	// 好大：task 没毛病，Buf2Resp 解码包没有问题
 	kTaskFailHandleDefault = -1,
-	kTaskFailHandleSessionTimeout = -13,
+	kTaskFailHandleSessionTimeout = -13,	// 好大：Buf2Resp 解码包的返回值，是逻辑层觉得这个包已经 timeout 了。
 	kTaskFailHandleTaskEnd = -14,
 	kTaskFailHandleTaskTimeout = -15
 };
@@ -118,7 +118,7 @@ enum ErrCmdType {
 enum {
 	kEctLocalTaskTimeout = -1,
     kEctLocalTaskRetry = -2,
-	kEctLocalStartTaskFail = -3,
+	kEctLocalStartTaskFail = -3,        // 好大：调用 StartTask 出错，long_task_manager or short_task_manager
 	kEctLocalAntiAvalanche = -4,
 	kEctLocalChannelSelect = -5,
 	kEctLocalNoNet = -6,

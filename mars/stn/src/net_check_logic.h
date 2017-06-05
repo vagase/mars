@@ -33,6 +33,7 @@ namespace mars {
     
 class NetSource;
 
+// 好大：检查所有网络连接状况的逻辑封装，包括：DNS，PING，TCP（长连接)，HTTP（短连接）
 class NetCheckLogic {
   public:
     NetCheckLogic();
