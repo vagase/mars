@@ -170,10 +170,10 @@ struct TransferProfile {
     
     uint64_t loop_start_task_time;  // 好大：在runloop中被唤起的时间 ms
     uint64_t first_start_send_time; // 好大：首次发送包的时间 ms
-    uint64_t start_send_time;    // 好大：最近一次发送包的时间 ms
-    uint64_t last_receive_pkg_time;  // 好大：收到最后一个包的时间 ms
+    uint64_t start_send_time;       // 好大：最近一次发送包的时间 ms
+    uint64_t last_receive_pkg_time; // 好大：收到最后一个包的时间 ms
     uint64_t read_write_timeout;    // 好大：读写超时时间 ms
-    uint64_t first_pkg_timeout;  // 好大：首包超时时间 ms
+    uint64_t first_pkg_timeout;     // 好大：首包超时时间 ms
     
     size_t sent_size;
     size_t send_data_size;

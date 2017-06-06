@@ -245,6 +245,7 @@ void ShortLinkTaskManager::__RunOnStartTask() {
         }
 
         //重试间隔
+        // 好大：没有达到重试间隔（1s）的，跳过
         if (first->retry_time_interval > curtime - first->retry_start_time) {
             xdebug2(TSF"retry interval, taskid:%0, task retry late task, wait:%1", first->task.taskid, (curtime - first->transfer_profile.loop_start_task_time) / 1000);
             first = next;
@@ -252,6 +253,7 @@ void ShortLinkTaskManager::__RunOnStartTask() {
         }
 
         // make sure login
+        // 好大：任务需要授权，但是App没有授权的，跳过
         if (first->task.need_authed) {
 
             if (!ismakesureauthruned) {
@@ -269,6 +271,7 @@ void ShortLinkTaskManager::__RunOnStartTask() {
         AutoBuffer bufreq;
         int error_code = 0;
 
+        // 好大：encode 错误
         if (!Req2Buf(first->task.taskid, first->task.user_context, bufreq, error_code, Task::kChannelShort)) {
             __SingleRespHandle(first, kEctEnDecode, error_code, kTaskFailHandleTaskEnd, 0, first->running_id ? ((ShortLinkInterface*)first->running_id)->Profile() : ConnectProfile());
             first = next;
@@ -278,6 +281,7 @@ void ShortLinkTaskManager::__RunOnStartTask() {
         //雪崩检测
         xassert2(fun_anti_avalanche_check_);
 
+        // 好大：发送太频繁、或者发送流量太大，返回错误
         if (!fun_anti_avalanche_check_(first->task, bufreq.Ptr(), (int)bufreq.Length())) {
             __SingleRespHandle(first, kEctLocal, kEctLocalAntiAvalanche, kTaskFailHandleTaskEnd, 0, first->running_id ? ((ShortLinkInterface*)first->running_id)->Profile() : ConnectProfile());
             first = next;
@@ -290,7 +294,10 @@ void ShortLinkTaskManager::__RunOnStartTask() {
 		first->transfer_profile.read_write_timeout = __ReadWriteTimeout(first->transfer_profile.first_pkg_timeout);
 		first->transfer_profile.send_data_size = bufreq.Length();
 
+        // 好大：这个有点意思，如果 task 允许重试且是最优一次重试，那么采用和默认相反的 proxy 策略。
         first->use_proxy =  (first->remain_retry_count == 0 && first->task.retry_count > 0) ? !default_use_proxy_ : default_use_proxy_;
+
+        // 好大：每个 task 底层执行的时候都会启动一个 worker。这里会每次都会创建一个 ShortLink，没有任何复用机制。
         ShortLinkInterface* worker = ShortLinkChannelFactory::Create(MessageQueue::Handler2Queue(asyncreg_.Get()), net_source_, first->task.shortlink_host_list, first->task.cgi, first->task.taskid, first->use_proxy);
         worker->OnSend = boost::bind(&ShortLinkTaskManager::__OnSend, this, _1);
         worker->OnRecv = boost::bind(&ShortLinkTaskManager::__OnRecv, this, _1, _2, _3);
@@ -304,6 +311,7 @@ void ShortLinkTaskManager::__RunOnStartTask() {
 			continue;
 		}
 
+        // 好大：每次 SendRequest 都会建立一个新的 TCP 连接，在 receive 之后就 close socket。
         worker->func_network_report = fun_notify_network_err_;
         worker->SendRequest(bufreq);
 
@@ -361,6 +369,7 @@ void ShortLinkTaskManager::__OnResponse(ShortLinkInterface* _worker, ErrCmdType 
 	int handle_type = Buf2Resp(it->task.taskid, it->task.user_context, body, err_code, Task::kChannelShort);
 
 	switch(handle_type){
+        // 好大：没有错误
 		case kTaskFailHandleNoError:
 		{
 			dynamic_timeout_.CgiTaskStatistic(it->task.cgi, (unsigned int)it->transfer_profile.send_data_size + (unsigned int)body.get().Length(), ::gettickcount() - it->transfer_profile.start_send_time);
@@ -369,17 +378,20 @@ void ShortLinkTaskManager::__OnResponse(ShortLinkInterface* _worker, ErrCmdType 
 			fun_notify_network_err_(__LINE__, kEctOK, err_code, _conn_profile.ip, _conn_profile.host, _conn_profile.port);
 		}
 			break;
+        // 好大：session timeout
 		case kTaskFailHandleSessionTimeout:
 		{
 			xwarn2(TSF"task decode error session timeout taskid:%_, cmdid:%_, cgi:%_", it->task.taskid, it->task.cmdid, it->task.cgi);
 			fun_notify_session_timeout_(err_code, it->task.taskid);
 		}
 			break;
+        // 好大：task 完成了
 		case kTaskFailHandleTaskEnd:
 		{
 			__SingleRespHandle(it, kEctEnDecode, err_code, handle_type, (unsigned int)it->transfer_profile.receive_data_size, _conn_profile);
 		}
 			break;
+        // 好大：默认策略，和下面 default 的处理逻辑一样。
 		case kTaskFailHandleDefault:
 		{
 			xerror2(TSF"task decode error handle_type:%_, err_code:%_, pWorker:%_, taskid:%_ body dump:%_", handle_type, err_code, (void*)it->running_id, it->task.taskid, xdump(body->Ptr(), body->Length()));
@@ -405,6 +417,7 @@ void ShortLinkTaskManager::__OnSend(ShortLinkInterface* _worker) {
 
     std::list<TaskProfile>::iterator it = __LocateBySeq((intptr_t)_worker);
 
+    // 好大：更新 transfer_profile 数据
     if (lst_cmd_.end() != it) {
     	if (it->transfer_profile.first_start_send_time == 0)
     	    		it->transfer_profile.first_start_send_time = ::gettickcount();
@@ -419,6 +432,7 @@ void ShortLinkTaskManager::__OnRecv(ShortLinkInterface* _worker, unsigned int _c
     xverbose_function();
     std::list<TaskProfile>::iterator it = __LocateBySeq((intptr_t)_worker);
 
+    // 好大：更新 transfer_profile 数据
     if (lst_cmd_.end() != it) {
         it->transfer_profile.last_receive_pkg_time = ::gettickcount();
         it->transfer_profile.received_size = _cached_size;
@@ -439,6 +453,7 @@ void ShortLinkTaskManager::RedoTasks() {
         std::list<TaskProfile>::iterator next = first;
         ++next;
 
+        // 停止正在执行的 worker ?
         if (first->running_id)    __DeleteShortLink(first->running_id);
 
         first->InitSendParam();
@@ -542,10 +557,12 @@ bool ShortLinkTaskManager::__SingleRespHandle(std::list<TaskProfile>::iterator _
 
     _it->retry_start_time = ::gettickcount();
     // session timeout 应该立刻重试
+    // 好大：kTaskFailHandleSessionTimeout => 重置 retry_start_time，是为了立即满足重试间隔，使得 task 能够里面就调用
     if (kTaskFailHandleSessionTimeout == _err_code) {
     	_it->retry_start_time = 0;
     }
 
+    // 好大：task 重试是有间隔的，必须在间隔后才能重试，这里默认是 1s。
     _it->retry_time_interval = DEF_TASK_RETRY_INTERNAL;
 
     return false;

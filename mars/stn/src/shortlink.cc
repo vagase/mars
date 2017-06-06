@@ -154,6 +154,7 @@ void ShortLink::__Run() {
     conn_profile.disconn_signal = ::getSignal(::getNetInfo() == kWifi);
     __UpdateProfile(conn_profile);
 
+    // 好大：每次 SendRequest 都会建立一个新的 TCP 连接，在 receive 之后就 close socket。
     socket_close(fd_socket);
 }
 
@@ -211,6 +212,7 @@ SOCKET ShortLink::__RunConnect(ConnectProfile& _conn_profile) {
     uint64_t startconnecttime = ::gettickcount();
     ShortLinkConnectObserver connect_observer(*this);
 
+    // 好大：通过复合连接策略建立 socket。
     SOCKET sock = ComplexConnect(kShortlinkConnTimeout, kShortlinkConnInterval).ConnectImpatient(vecaddr, breaker_, &connect_observer);
 
     _conn_profile.conn_errcode = connect_observer.LastErrorCode();

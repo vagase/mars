@@ -43,6 +43,7 @@ DynamicTimeout::DynamicTimeout()
 DynamicTimeout::~DynamicTimeout() {
 }
 
+// 好大：统计 CGI 任务的耗时，参数中 _cgi_uri 并没有什么实际用处，用来打 log 。
 void DynamicTimeout::CgiTaskStatistic(std::string _cgi_uri, unsigned int _total_size, uint64_t _cost_time) {
     int task_status = (_total_size == kDynTimeTaskFailedPkgLen || _cost_time == 0) ? kDynTimeTaskFailedTag : KDynTimeTaskNormalTag;
     

@@ -43,6 +43,7 @@
 namespace mars {
 namespace stn {
 
+// 好大：短连接并不是一个完整的 HTTP Client，没有 keep-alive，没有复用 socket。sendRequest 都会 connect／close。
 class ShortLink : public ShortLinkInterface {
   public:
     ShortLink(MessageQueue::MessageQueue_t _messagequeueid, NetSource& _netsource, const std::vector<std::string>& _host_list, const std::string& _url, const int _taskid, bool _use_proxy);
