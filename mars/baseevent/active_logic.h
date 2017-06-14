@@ -25,6 +25,8 @@
 #include "mars/comm/alarm.h"
 #include "mars/comm/thread/mutex.h"
 
+// 好大：ActiveLogic 是用来提供App状态的，包括前后台，是否活跃。
+// 好大：只要有 forground／background 事件，都认为是 active 的。在非 Apple 平台，10分钟内没有这些事件，设置为 inactive。
 class ActiveLogic
 {
 public:

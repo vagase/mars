@@ -294,7 +294,10 @@ void ShortLinkTaskManager::__RunOnStartTask() {
 		first->transfer_profile.read_write_timeout = __ReadWriteTimeout(first->transfer_profile.first_pkg_timeout);
 		first->transfer_profile.send_data_size = bufreq.Length();
 
-        // 好大：这个有点意思，如果 task 允许重试且是最优一次重试，那么采用和默认相反的 proxy 策略。
+        /**
+         * 好大：这个有点意思，如果 task 允许重试且是最后一次重试，那么采用和默认相反的 proxy 策略。
+         * 这样做的目的就是在 task 怎么也发送不成功情况下，尝试通过 proxy 请求，如果proxy 请求成功了，那么之后的请求也都默认采用 proxy 了。
+         */
         first->use_proxy =  (first->remain_retry_count == 0 && first->task.retry_count > 0) ? !default_use_proxy_ : default_use_proxy_;
 
         // 好大：每个 task 底层执行的时候都会启动一个 worker。这里会每次都会创建一个 ShortLink，没有任何复用机制。
@@ -497,6 +500,7 @@ bool ShortLinkTaskManager::__SingleRespHandle(std::list<TaskProfile>::iterator _
 
     if (kEctOK == _err_type) {
         tasks_continuous_fail_count_ = 0;
+        // 好大：如果有短连接 task 成功使用 proxy，那么默认就采用 proxy
         default_use_proxy_ = _it->use_proxy;
     } else {
         ++tasks_continuous_fail_count_;

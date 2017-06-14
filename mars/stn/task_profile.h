@@ -185,7 +185,13 @@ struct TransferProfile {
     int error_type;
     int error_code;
 };
-        
+
+/*
+ * 好大：每次 start 一个 task 的时候，会创建一个 TaskProfile，然后将 TaskProfile 放入 command list 队列中
+ *
+ * TaskProfile 1 -> n history_transfer_profiles (TransferProfile)
+ * TransferProfile 1 -> 1 connect_profile (ConnectProfile)
+ */
 struct TaskProfile {
     
     static uint64_t ComputeTaskTimeout(const Task& _task) {

@@ -32,6 +32,7 @@ struct DNSBreaker {
 	int* dnsstatus;
 };
 
+// 好大：如果提供了 _dnsfunc，那么 __GetIP 的时候就直接调用 dnsfunc；反之则走正常的 DNS 流程。
 class DNS {
   public:
    typedef std::vector<std::string> (*DNSFunc)(const std::string& host);
@@ -41,6 +42,8 @@ class DNS {
     ~DNS();
     
   public:
+
+    // 好大：地获取 IP 地址，阻塞
     bool GetHostByName(const std::string& _host_name, std::vector<std::string>& ips, long millsec = 2 * 1000, DNSBreaker* _breaker = NULL);
     void Cancel(const std::string& _host_name = std::string());
     void Cancel(DNSBreaker& _breaker);

@@ -36,6 +36,8 @@ class SignallingKeeper: IAsyncUdpClientEvent {
   public:
     static void SetStrategy(unsigned int  _period, unsigned int _keep_time);  // ms
   public:
+
+    // 好大：默认是发送 UDP 包的，为 false 的时候是通过长连接发送包 command id 为 signal_keep_cmdid() 的包
     SignallingKeeper(const LongLink& _longlink, MessageQueue::MessageQueue_t _messagequeue_id, bool _use_UDP = true);
     ~SignallingKeeper();
 

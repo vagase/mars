@@ -38,6 +38,7 @@ static void __initbind_baseprjevent() {
 
 BOOT_RUN_STARTUP(__initbind_baseprjevent);
 
+// 好大：超时 10 分钟
 #ifdef ANDROID
 #define INACTIVE_TIMEOUT (10*60*1000) //ms
 #elif defined Q_OS_BLACKBERRY
@@ -91,6 +92,8 @@ void ActiveLogic::OnForeground(bool _isforeground)
 
     if (!isforeground_)
     {
+        // 好大：只要有 forground／background 事件，都认为是 active 的。在非 Apple 平台，10分钟内没有这些事件，设置为 inactive。
+        // 好大: 为什么 Apple 平台要特殊处理？这样的话，active 就永远是 YES 了啊。
 #ifndef __APPLE__
         if (!alarm_.Start(INACTIVE_TIMEOUT))
        	{

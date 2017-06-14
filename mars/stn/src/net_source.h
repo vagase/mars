@@ -41,6 +41,24 @@ namespace mars {
 
 struct IPPortItem;
 
+/**
+ * 好大：NetSource 几个核心功能
+ *  1. 设置 IP & PORTS
+ *  SetLongLink
+ *  SetShortlink
+ *  SetBackupIPs
+ *  SetDebugIP
+ *  SetLowPriorityLonglinkPorts
+ *
+ *  2. 按照质量排序后的 IP X PORT
+ *  GetLongLinkItems
+ *  GetShortLinkItems
+ *
+ *  3. 反馈以及更新 IP X PORT 的质量
+ *  ReportLongIP
+ *  ReportShortIP
+ *  RemoveLongBanIP
+ */
 class NetSource {
   public:
     class DnsUtil {
@@ -85,6 +103,8 @@ class NetSource {
     static std::string DumpTable(const std::vector<IPPortItem>& _ipport_items);
     
   public:
+
+    // 好大：net_source_(new NetSource(*SINGLETON_STRONG(ActiveLogic)))
     NetSource(ActiveLogic& _active_logic);
     ~NetSource();
 
@@ -102,9 +122,12 @@ class NetSource {
 
     void RemoveLongBanIP(const std::string& _ip);
 
+    // 好大：根据提供的 _hostlist ，获取系统网络代理设置中对应的 proxy IP X PORT。只有短连接可以用 proxy
     bool GetShortLinkProxyInfo(uint16_t& _port, std::string& _ipproxy, const std::vector<std::string>& _hostlist);
 
+    // 好大：返回的空
     bool GetLongLinkSpeedTestIPs(std::vector<IPPortItem>& _ip_vec);
+    // 好大：report 目前啥也没做
     void ReportLongLinkSpeedTestResult(std::vector<IPPortItem>& _ip_vec);
 
   private:

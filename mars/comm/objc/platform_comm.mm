@@ -75,6 +75,7 @@ float publiccomponent_GetSystemVersion() {
     return 0;
 }
 
+// 好大：获取某个URL的 iOS、macOS 系统的网络 proxy 信息，watchOS中不支持。
 bool getProxyInfo(int& port, std::string& strProxy, const std::string& _host)
 {
     xverbose_function();

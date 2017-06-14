@@ -114,6 +114,7 @@ void SignallingKeeper::Stop()
 
 void SignallingKeeper::__SendSignallingBuffer()
 {
+    // 好大：默认是发送 UDP 包的
     if (use_UDP_)
     {
         ConnectProfile link_info = longlink_.Profile();
@@ -133,7 +134,9 @@ void SignallingKeeper::__SendSignallingBuffer()
             longlink_pack(signal_keep_cmdid(), 0, NULL, 0, buffer);
             udp_client_.SendAsync(buffer.Ptr(), buffer.Length());
         }
-    } else {
+    }
+    // 好大：不发送 UDP 的话，就通过长连接发送。
+    else {
         if (fun_send_signalling_buffer_)
         {
             fun_send_signalling_buffer_(NULL, 0, signal_keep_cmdid());

@@ -23,7 +23,7 @@
 using namespace http;
 
 void shortlink_pack(const std::string& _url, const std::map<std::string, std::string>& _headers, const AutoBuffer& _body, AutoBuffer& _out_buff) {
-
+    // 好大：用 mars 提供的 HTTP builder，将command 封装为一个 HTTP 请求。mars 短连接只能支持 HTTP 请求。
 	Builder req_builder(kRequest);
 	req_builder.Request().Method(RequestLine::kPost);
 	req_builder.Request().Version(kVersion_1_0);

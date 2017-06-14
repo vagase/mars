@@ -49,6 +49,7 @@ void StnCallBack::TrafficData(ssize_t _send, ssize_t _recv) {
         
 std::vector<std::string> StnCallBack::OnNewDns(const std::string& _host) {
     std::vector<std::string> vector;
+    // 好大：这个是逻辑层提供的 IP 地址，比如通过 HTTP DNS 获取。已经是针对该用户（地区+运营商）提供的按照用户访问质量排序的 IP 地址列表。
 //    vector.push_back("118.89.24.72");
     return vector;
 }

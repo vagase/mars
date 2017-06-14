@@ -51,10 +51,15 @@ static std::string DNSInfoToString(const struct dnsinfo& _info) {
 	msg(TSF"info:%@p, threadid:%_, dns:@%p, host_name:%_, status:%_", &_info, _info.threadid, _info.dns, _info.host_name, _info.status);
 	return msg.Message();
 }
+
+// 好大：sg_dnsinfo_vec 就是一个线程池，每个 dnsprofile 都是由一个线程完成
 static std::vector<dnsinfo> sg_dnsinfo_vec;
 static Condition sg_condition;
 static Mutex sg_mutex;
 
+/*
+ * 好大：如果提供了 _dnsfunc，那么就直接调用 dnsfunc；反之则走正常的 DNS 流程。比如可以通过 dnsfunc 提供 HTTPDNS 的解析结果。
+ */
 static void __GetIP() {
     xverbose_function();
 
@@ -75,6 +80,7 @@ static void __GetIP() {
 
     lock.unlock();
 
+    // 好大：dnsfunc 为空，那么调用系统 API 查询 DNS。
     if (NULL == dnsfunc) {
         
         struct addrinfo hints, *single, *result;
@@ -85,10 +91,13 @@ static void __GetIP() {
         //in iOS work fine, in Android ipv6 stack get ipv4-ip fail
         //and in ipv6 stack AI_ADDRCONFIGd will filter ipv4-ip but we ipv4-ip can use by nat64
     //    hints.ai_flags = AI_V4MAPPED|AI_ADDRCONFIG;
+
+        // 好大：调用的是系统 API getaddrinfo 获取的 IP 地址，而非 DNSQuery::socket_gethostbyname .
         int error = getaddrinfo(host_name.c_str(), NULL, &hints, &result);
 
         lock.lock();
 
+        // 好大：重新获取一次当前这个 thread 对应的 dnsinfo，因为是多线程可能在这期间已经发生了一些变化。
         iter = sg_dnsinfo_vec.begin();
         for (; iter != sg_dnsinfo_vec.end(); ++iter) {
             if (iter->threadid == ThreadUtil::currentthreadid()) {
@@ -104,11 +113,13 @@ static void __GetIP() {
             sg_condition.notifyAll();
             return;
         } else {
+            // 好大：这个线程的 dnsprofile 已经找不到了，直接 return lol。
             if (iter == sg_dnsinfo_vec.end()) {
                 freeaddrinfo(result);
                 return;
             }
 
+            // 好大：获取 dns 查询结果的 ip 地址列表，并寸如 profile 中。
             for (single = result; single; single = single->ai_next) {
                 if (PF_INET != single->ai_family) {
                     xassert2(false);
@@ -150,7 +161,9 @@ static void __GetIP() {
             iter->status = kGetIPSuc;
             sg_condition.notifyAll();
         }
-    } else {
+    }
+    // 好大：通过调用 dnsfunc 由应用层查询 IP 地址，比如 HTTPDNS。
+    else {
         std::vector<std::string> ips = dnsfunc(host_name);
         lock.lock();
         
@@ -177,6 +190,7 @@ DNS::~DNS() {
     Cancel();
 }
 
+// 好大：地获取 IP 地址，阻塞
 bool DNS::GetHostByName(const std::string& _host_name, std::vector<std::string>& ips, long millsec, DNSBreaker* _breaker) {
     xverbose_function();
 
@@ -199,6 +213,7 @@ bool DNS::GetHostByName(const std::string& _host_name, std::vector<std::string>&
     }
 
     dnsinfo info;
+    // 好大：为每一个 dns 查询生成一个 dnsprofile，为每个 dnsprofile 创建一个专属 thread 去工作。
     info.threadid = thread.tid();
     info.host_name = _host_name;
     info.dns_func = dnsfunc_;
@@ -214,10 +229,12 @@ bool DNS::GetHostByName(const std::string& _host_name, std::vector<std::string>&
         uint64_t time_cur = gettickcount();
         uint64_t time_wait = time_end > time_cur ? time_end - time_cur : 0;
 
+        // 好大：通过 condition 进行等待。
         int wait_ret = sg_condition.wait(lock, (long)time_wait);
 
         std::vector<dnsinfo>::iterator it = sg_dnsinfo_vec.begin();
 
+        // 好大：只关注当前 info
         for (; it != sg_dnsinfo_vec.end(); ++it) {
             if (info.threadid == it->threadid)
                 break;
@@ -231,19 +248,23 @@ bool DNS::GetHostByName(const std::string& _host_name, std::vector<std::string>&
                 it->status = kGetIPTimeout;
             }
 
+            // 好大：当前 info 仍然还在查询中，跳过
             if (kGetIPDoing == it->status) {
                 continue;
             }
 
             if (kGetIPSuc == it->status) {
             	if (_host_name==it->host_name) {
-					ips = it->result;
+                    ips = it->result;
 
-					if (_breaker) _breaker->dnsstatus = NULL;
+                    if (_breaker) _breaker->dnsstatus = NULL;
 
-					sg_dnsinfo_vec.erase(it);
-					return true;
-            	} else {
+                    // 好大：查询成功，将 profile 从 sg_dnsinfo_vec 中释放，并返回
+                    sg_dnsinfo_vec.erase(it);
+                    return true;
+                }
+                // 好大：难不成 hostname 还会发生变化？kDNSThreadIDError 什么意思 ？
+                else {
                     std::vector<dnsinfo>::iterator iter = sg_dnsinfo_vec.begin();
                     int i = 0;
                     for (; iter != sg_dnsinfo_vec.end(); ++iter) {
@@ -276,6 +297,7 @@ bool DNS::GetHostByName(const std::string& _host_name, std::vector<std::string>&
     return false;
 }
 
+// 好大：如果 _host_name 为空，表示取消全部的 DNS 请求，不为空则只取消对应的请求。
 void DNS::Cancel(const std::string& _host_name) {
     xverbose_function();
     ScopedLock lock(sg_mutex);

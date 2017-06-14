@@ -47,15 +47,17 @@ static const char* const kItemDelimiter = ":";
 static const int kNumMakeCount = 5;
 
 //mmnet ipport settings
+// 好大：长连接
 static std::vector<std::string> sg_longlink_hosts;
 static std::vector<uint16_t> sg_longlink_ports;
 static std::string sg_longlink_debugip;
+static std::vector<uint16_t> sg_lowpriority_longlink_ports;                         // 好大：为长连接设置兜底的端口列表。
 
+// 好大：长连接
 static int sg_shortlink_port;
 static std::string sg_shortlink_debugip;
-static std::map< std::string, std::vector<std::string> > sg_host_backupips_mapping;
-static std::vector<uint16_t> sg_lowpriority_longlink_ports;
 
+static std::map< std::string, std::vector<std::string> > sg_host_backupips_mapping; // 好大：为 DNS 解析设置兜底的 IP 地址
 static std::map< std::string, std::string > sg_host_debugip_mapping;
 
 static Mutex sg_ip_mutex;
@@ -67,6 +69,7 @@ static uint16_t sg_slproxyport = 0;
 static uint64_t sg_slproxytimetick = gettickcount();
 static int sg_slproxycount = 0;
 
+// 好大：获取某个 host 对应的系统网络代理信息
 static void __GetProxyInfo(uint64_t _timetick, std::string _host) {
     xinfo_function(TSF"_timetick:%_, _host:%_", _timetick, _host);
 
@@ -90,6 +93,7 @@ static void __GetProxyInfo(uint64_t _timetick, std::string _host) {
 
     if (tmp_proxy.empty() || 0 == tmp_port) return;
 
+	// 好大：proxy 如果不是 IP 地址而是host，通过正常 DNS 查询 IP 地址。
     static DNS s_dns;
     std::vector<std::string> result;
     s_dns.GetHostByName(tmp_proxy, result);
@@ -345,16 +349,24 @@ bool NetSource::__GetShortlinkDebugIPPort(std::vector<std::string> _hostlist, st
 }
 
 void NetSource::__GetIPPortItems(std::vector<IPPortItem>& _ipport_items, std::vector<std::string> _hostlist, DnsUtil& _dns_util, bool _islonglink) {
+	// 好大：为什么要采取这样的策略：active 的时候获取 _hostlist 前面的 host，而非 active 的时候尽量在结果集中平均分布？
 	if (active_logic_.IsActive()) {
 		unsigned int merge_type_count = 0;
-		unsigned int makelist_count = kNumMakeCount;
+		unsigned int makelist_count = kNumMakeCount;    // 好大：kNumMakeCount = 5，
 
+        // 好大：STEP 1 先获取正常的 IP X PORT
 		for (std::vector<std::string>::iterator iter = _hostlist.begin(); iter != _hostlist.end(); ++iter) {
+            /**
+             * 好大：如果第一个 host 就解析出 kNumMakeCount 个 IP，再添加一个额外的名额，目的是为了让结果列表里面不全是这一个 host 的结果。
+             * 不然的话，这个 host 全挂了的话也没有机会可以尝试其他 host 了。
+             */
 			if (merge_type_count == 1 && _ipport_items.size() == kNumMakeCount) makelist_count = kNumMakeCount + 1;
 
 			if (0 < __MakeIPPorts(_ipport_items, *iter, makelist_count, _dns_util, false, _islonglink)) merge_type_count++;
 		}
 
+        // 好大：STEP 2 然后在获取 backup IP X PORT。
+        // 好大：注意：如果没有设置 backup ip 和 low priority ports，那么这里可能返回和 STEP 1 重复的记录。
 		for (std::vector<std::string>::iterator iter = _hostlist.begin(); iter != _hostlist.end(); ++iter) {
 			if (merge_type_count == 1 && _ipport_items.size() == kNumMakeCount) makelist_count = kNumMakeCount + 1;
 
@@ -367,6 +379,28 @@ void NetSource::__GetIPPortItems(std::vector<IPPortItem>& _ipport_items, std::ve
 		size_t ret2 = (kNumMakeCount - 1) % host_count;
 		size_t i = 0;
 		size_t count = 0;
+        /**
+         * 好大：给一个 demo 数据集合，就明白为什么这样做了。
+         *
+         *    host_count                                    kNumMakeCount
+         *
+         *               ┌───────────────────────────────────────────────────────────────────────────────┐
+         *               │                                       5                                       │
+         *  ┌────────────┼───────────────────────────────────────────────────────────────────────────────┤
+         *  │     1      │4/1=4 4%1=0 => i:0 count:4                                                     │
+         *  ├────────────┼───────────────────────────────────────────────────────────────────────────────┤
+         *  │     2      │4/2=2 4%2=0 => i:0 count:2, i:1 count:4                                        │
+         *  ├────────────┼───────────────────────────────────────────────────────────────────────────────┤
+         *  │     3      │4/3=1 4%3=1 => i:0 count:2, i:1 count:3, i:2 count:4                           │
+         *  ├────────────┼───────────────────────────────────────────────────────────────────────────────┤
+         *  │     4      │4/4=1 4%4=0 => i:0 count:1, i:1 count:2, i:2 count:3, i:3 count:4              │
+         *  ├────────────┼───────────────────────────────────────────────────────────────────────────────┤
+         *  │     5      │4/5=0 4%5=4 => i:0 count:1, i:1 count:2, i:2 count:3, i:3 count:4, i:4 count:4 │
+         *  └────────────┴───────────────────────────────────────────────────────────────────────────────┘
+         *
+         *  这样做的目的就是为了在 kNumMakeCount 限制下，尽量将所有 host 都包含在结果列表里面。
+         *
+         */
 
 		for (std::vector<std::string>::iterator host_iter = _hostlist.begin(); host_iter != _hostlist.end() && count < kNumMakeCount - 1; ++host_iter) {
 			count += i < ret2 ? ret + 1 : ret;
@@ -386,10 +420,16 @@ size_t NetSource::__MakeIPPorts(std::vector<IPPortItem>& _ip_items, const std::s
 	std::vector<std::string> iplist;
     std::vector<uint16_t> ports;
 
+	/**
+	 * 好大：非 backup：通过 DNS，NEWDNS 解析出 IP 地址列表；PORTS 读取长连接或短连接端口
+	 * 好大：backup 则从 sg_host_backupips_mapping 获得对应 IP 地址，但是如果没有设置 host 的 backup ips，那么会通过 DNS 解析然后将结果更新至 sg_host_backupips_mapping。
+	 * 		PORTS 长连接读取 low priority ports，短连接照旧。
+	 */
 	if (!_isbackup) {
 		DnsProfile dns_profile;
 		dns_profile.host = _host;
 
+        // 好大：首先尝试通过 new dns 解析 IP 地址
 		bool ret = _dns_util.GetNewDNS().GetHostByName(_host, iplist);
 
 		dns_profile.end_time = gettickcount();
@@ -399,6 +439,7 @@ size_t NetSource::__MakeIPPorts(std::vector<IPPortItem>& _ip_items, const std::s
 		xgroup2_define(dnsxlog);
 		xdebug2(TSF"link host:%_, new dns ret:%_, size:%_ ", _host, ret, iplist.size()) >> dnsxlog;
 
+        // 好大：如果 new dns 不能解析，再尝试走标准的 DNS 解析
 		if (iplist.empty()) {
 			dns_profile.Reset();
 			dns_profile.dnstype = kType_Dns;
@@ -426,13 +467,15 @@ size_t NetSource::__MakeIPPorts(std::vector<IPPortItem>& _ip_items, const std::s
 	else {
 		NetSource::GetBackupIPs(_host, iplist);
 		xdebug2(TSF"link host:%_, backup ips size:%_", _host, iplist.size());
-        
+
+		// 好大：如果没有设置 backup ips ，将正常 DNS query 结果设置为 backup ips 。
         if (iplist.empty() && _dns_util.GetDNS().GetHostByName(_host, iplist)) {
             ScopedLock lock(sg_ip_mutex);
             sg_host_backupips_mapping[_host] = iplist;
         }
         
 		if (_islonglink) {
+			// 好大：如果设置了 sg_lowpriority_longlink_ports 返回 sg_lowpriority_longlink_ports，没有设置就返回正常长连接端口。
             if (sg_lowpriority_longlink_ports.empty()) {
                 NetSource::GetLonglinkPorts(ports);
             } else {
@@ -461,11 +504,14 @@ size_t NetSource::__MakeIPPorts(std::vector<IPPortItem>& _ip_items, const std::s
 		}
 	}
 
-	if (!_isbackup) {
+    // 好大：只允许 _ip_items 里面最多 _count 个记录，加上已有和新的元素。
+    if (!_isbackup) {
+        // 好大：将 IP X PORTS 的集合进行排序，详细步骤参见 SimpleIPPortSort::SortandFilter，不包括已经在 _ip_items 的记录。
 		ipportstrategy_.SortandFilter(temp_items, (int)(_count - len));
 		_ip_items.insert(_ip_items.end(), temp_items.begin(), temp_items.end());
 	}
 	else {
+        // 好大：获得 backup ip时，将 IP X PORTS 的集合进行随机处理，没有排序策略。包括已经在 _ip_items 的记录。
 		_ip_items.insert(_ip_items.end(), temp_items.begin(), temp_items.end());
 		srand((unsigned)gettickcount());
 		std::random_shuffle(_ip_items.begin() + len, _ip_items.end());
@@ -488,6 +534,7 @@ void NetSource::ReportShortIP(bool _is_success, const std::string& _ip, const st
 /**
  * use proxy
  */
+// 好大：根据提供的 _hostlist ，获取系统代理设置中对应的 proxy IP X PORT。只有短连接可以用 proxy。只会用到 _hostlist 第一个 host。
 bool NetSource::GetShortLinkProxyInfo(uint16_t& _port, std::string& _ipproxy, const std::vector<std::string>& _hostlist) {
     if (__HasShortLinkDebugIP(_hostlist)) return false;
     
@@ -501,6 +548,7 @@ bool NetSource::GetShortLinkProxyInfo(uint16_t& _port, std::string& _ipproxy, co
 
     if (!lock.timedlock(500)) return false;
 
+	// 好大：触发异步更新 proxy 信息
     if (sg_slproxycount < 3 || (5 * 1000) > gettickspan(sg_slproxytimetick)) {
         sg_slproxyThread.start(boost::bind(&__GetProxyInfo, sg_slproxytimetick, _hostlist.empty() ? "" : _hostlist.front()));
     }

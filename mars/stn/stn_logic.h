@@ -69,6 +69,7 @@ namespace stn{
     void SetCallback(Callback* const callback);
     
 
+    // 好大：1. 为什么长连接只能有一个 host 而非 host list？2. 为什么短连接不能在这里设置好，而是 send 的时候，每次在 task 里面提供？
     void SetLonglinkSvrAddr(const std::string& host, const std::vector<uint16_t> ports);
     void SetShortlinkSvrAddr(const uint16_t port);
     
@@ -111,6 +112,18 @@ namespace stn{
     //if you did not call this function, stn will use default value: period:  5s, keeptime: 20s
     void SetSignallingStrategy(long period, long keeptime);
 
+    /*
+     * 好大：已经有长连接心跳了，为什么还要 keep signalling 呢？
+     *
+     * 官方解答：信令包，为了维持手机网卡的活跃态以及用来长时间霸占基站的信令进而提高发送数据的速度，具体细节可谷歌 "手机 RRC"。 该功能可选。https://github.com/Tencent/mars/wiki/Mars-%E5%B8%B8%E7%94%A8%E6%9C%AF%E8%AF%AD
+     * 信令保活好理解，就是防止基站以及 NAT 设备地址转换表失效，导致 TCP 连接失效。
+     * RRC (Radio Resource Control) 无限资源控制器，因为 RRC 比较耗电（比 WIFI 耗电），所以为了省电当没有流量的时候就会将 RRC 设置为空闲状态。当再次发送流量当时候，RRC 从闲置到激活有一个延迟，3G 200-2500ms，4G 50-100ms。http://www.hello-code.com/blog/android/201603/5977.html
+     * 所以这里 KeepSignalling 是为了同时信令保活和保持RRC活跃。
+     *
+     * 现在回来回答最初的问题：为什么已经有长连接心跳，还需要 keep signalling 呢？
+     * 如果 keep signalling 是走长连接，确实没太大差别，出了保活RRC；但如果没有长连接或者长连接不太好，那么也只能通过 UDP 发送保活心跳了。
+     * 感觉 keep signalling 是长连接心跳的一种补充。
+     */
     // used to keep longlink active
     // keep signnaling once 'period' and last 'keeptime'
     void KeepSignalling();

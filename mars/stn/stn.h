@@ -81,13 +81,13 @@ public:
     int32_t     priority;  // user
     
     int32_t     retry_count;  // user
-    int32_t     server_process_cost;  // user
+    int32_t     server_process_cost;  // user   好大：这个是有应用层提供的关于这个 task 预估的服务器需要处理的时间
     int32_t     total_timetout;  // user ms
     
     void*       user_context;  // user
     std::string report_arg;  // user for cgi report
     
-    std::vector<std::string> shortlink_host_list;
+    std::vector<std::string> shortlink_host_list;	// 好大：为什么长连接 host 可以在 source 里面设置，而短连接 host 却要在 task 里面设置？
 };
 
 enum TaskFailHandleType {
@@ -179,13 +179,14 @@ enum IdentifyMode {
     kCheckNext,
     kCheckNever
 };
-        
+
+// 好大：这个类型就说明了 DNS host -> IP 的来源
 enum IPSourceType {
     kIPSourceNULL = 0,
-    kIPSourceDebug,
-    kIPSourceDNS,
-    kIPSourceNewDns,
-    kIPSourceProxy,
+    kIPSourceDebug,			// 设置了 Debug IP 地址映射
+    kIPSourceDNS,			// 标准 DNS 解析
+    kIPSourceNewDns,		// new dns: 有应用层提供的 DNS 解析，比如 HTTPDNS
+    kIPSourceProxy,			//
     kIPSourceBackup,
 };
 
@@ -222,12 +223,18 @@ extern int Buf2Resp(int32_t taskid, void* const user_context, const AutoBuffer& 
 extern int  OnTaskEnd(int32_t taskid, void* const user_context, int error_type, int error_code);
 
 //上报网络连接状态
+// 好大：status: 综合长短连下的网络状态；longlink_status : 长连接的状态，值的范围和status相同。
 extern void ReportConnectStatus(int status, int longlink_status);
 //长连信令校验 ECHECK_NOW = 0, ECHECK_NEVER = 1, ECHECK_NEXT = 2
+// 好大：要求上层生成长链接数据校验包,在长链接连接上之后使用,用于验证客户端身份和同步消息。
+// 好大：identify_buffer : 校验包数据内容。
+// 好大：buffer_hash : 校验包的 hash。
+// 好大：cmdid : 数据校验的 cmd id。
 extern int  GetLonglinkIdentifyCheckBuffer(AutoBuffer& identify_buffer, AutoBuffer& buffer_hash, int32_t& cmdid);
 //长连信令校验回包
 extern bool OnLonglinkIdentifyResponse(const AutoBuffer& response_buffer, const AutoBuffer& identify_buffer_hash);
 
+// 好大：请求上层发起 sync 请求。
 extern void RequestSync();
 //验证是否已登录
 extern bool IsLogoned();
@@ -239,6 +246,7 @@ extern void ReportTaskProfile(const TaskProfile& _task_profile);
 //底层通知上层cgi命中限制
 extern void ReportTaskLimited(int _check_type, const Task& _task, unsigned int& _param);
 //底层上报域名dns结果
+// 好大：每次 DNS 解析的时候都会调用这个方法，默认这个方法啥也不干
 extern void ReportDnsProfile(const DnsProfile& _dns_profile);
         
 }}
