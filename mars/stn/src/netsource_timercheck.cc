@@ -105,9 +105,13 @@ void NetSourceTimerCheck::__StartCheck() {
 
 void NetSourceTimerCheck::__Check() {
 
+    // 好大：这个时候 LongLink::ConnectProfile 里面的 host，ip_type 都是起码是获取了 DNS 之后的结果。
     IPSourceType pre_iptype = longlink_.Profile().ip_type;
 
-    // 好大：只有 iptype 是 kIPSourceProxy 或 kIPSourceBackup 才检查
+    /**
+     * 好大：只有 iptype 是 kIPSourceProxy 或 kIPSourceBackup 才检查。为什么只检查这两种呢？
+     *
+     */
     if (kIPSourceDebug == pre_iptype || kIPSourceNULL == pre_iptype || kIPSourceNewDns == pre_iptype || kIPSourceDNS == pre_iptype) {
     	return;
     }
@@ -127,6 +131,10 @@ void NetSourceTimerCheck::__Check() {
         return;
     }
 
+    /**
+     * 好大：这个时候 LongLink::ConnectProfile 里面的 host，ip_type 都是起码是获取了 DNS 之后的结果。
+     * 但是这个 host 可能是连接中或者连接失败的 ip_items 第一个元素（参见 LongLink::__RunConnect）；也可能是连接成功后，最终复合连接选择的 host。
+     */
     std::string linkedhost = longlink_.Profile().host;
     xdebug2(TSF"current host:%0", linkedhost);
 
@@ -165,7 +173,7 @@ void NetSourceTimerCheck::__Run(const std::string& _host) {
 
 		xassert2(fun_time_check_suc_);
 
-        // 对应 host 新的 IP 可以连接成功，那么通知 长连接 断开，用新的 IP 重新建立连接。
+        //好大：对应 host 新的 IP 可以连接成功，那么通知 长连接 断开，用新的 IP 重新建立连接。
 		if (fun_time_check_suc_) {
 			// reset the long link
 			fun_time_check_suc_();
@@ -184,7 +192,7 @@ bool NetSourceTimerCheck::__TryConnnect(const std::string& _host) {
     if (ip_vec.empty()) dns_util_.GetDNS().GetHostByName(_host, ip_vec);
     if (ip_vec.empty()) return false;
 
-    // 好大：只有 host 对应的 IP 发生了变化才检查
+    // 好大：重新通过 DNS、NEWDNS 获得的 IP地址列表，和现在的 ConnectProfile 中的 IP 完全不匹配才检查
     for (std::vector<std::string>::iterator iter = ip_vec.begin(); iter != ip_vec.end(); ++iter) {
     	if (*iter == longlink_.Profile().ip) {
     		return false;
@@ -200,14 +208,19 @@ bool NetSourceTimerCheck::__TryConnnect(const std::string& _host) {
     }
 
     // random get speed test ip and port
+    // 好大：随便挑一个 IP X PORT 进行测试
     srand((unsigned)gettickcount());
     size_t ip_index = rand() % ip_vec.size();
     size_t port_index = rand() % port_vec.size();
 
+    // 好大：LongLinkSpeedTestItem 创建对象的时候就进行 socket connect。注意这里选择测试的 IP 地址，并不是 longlink_.Profile().ip, 这是理解 NetSourceTimerCheck 关键所在。
     LongLinkSpeedTestItem speed_item(ip_vec[ip_index], port_vec[port_index]);
 
+    // 好大：LongLinkSpeedTestItem 就是发送心跳包，然后服务器回心跳包，从而达到测试速度的目的
     while (true) {
         seletor_.PreSelect();
+
+        // 好大：根据 state 确定下一步该干什么：send or recv
         speed_item.HandleSetFD(seletor_);
 
         int select_ret = seletor_.Select(kTimeout);
@@ -231,6 +244,7 @@ bool NetSourceTimerCheck::__TryConnnect(const std::string& _host) {
             break;
         }
 
+        // 好大：执行具体的 send or recv
         speed_item.HandleFDISSet(seletor_);
 
         if (kLongLinkSpeedTestSuc == speed_item.GetState() || kLongLinkSpeedTestFail == speed_item.GetState()) {

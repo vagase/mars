@@ -113,10 +113,11 @@ void LongLinkSpeedTestItem::HandleFDISSet(SocketSelect& _sel) {
     }
 }
 
+// 好大：根据 state 确定下一步该干什么：send or recv
 void LongLinkSpeedTestItem::HandleSetFD(SocketSelect& _sel) {
     switch (state_) {
     case kLongLinkSpeedTestConnecting:
-    case kLongLinkSpeedTestOOB:
+    case kLongLinkSpeedTestOOB:         // 好大：服务器返回了 out of band，客户端就再发送一个心跳包过去
     case kLongLinkSpeedTestReq:
         _sel.Write_FD_SET(socket_);
         _sel.Read_FD_SET(socket_);
@@ -147,6 +148,7 @@ unsigned int LongLinkSpeedTestItem::GetPort() {
 }
 
 unsigned long LongLinkSpeedTestItem::GetConnectTime() {
+    // 好大：这个是socket 建立连接的时间，就是 connect 到 开始 send request 之间时间间隔。
     return after_connect_time_ - before_connect_time_;
 }
 
@@ -162,6 +164,7 @@ void LongLinkSpeedTestItem::CloseSocket() {
     }
 }
 
+// 好大：执行具体的 send or recv
 int LongLinkSpeedTestItem::__HandleSpeedTestReq() {
     ssize_t nwrite =::send(socket_, req_ab_.PosPtr(), req_ab_.Length() - req_ab_.Pos(), 0);
 
@@ -172,11 +175,11 @@ int LongLinkSpeedTestItem::__HandleSpeedTestReq() {
         xdebug2(TSF"send length:%0", nwrite);
         req_ab_.Seek(nwrite, AutoBuffer::ESeekCur);
 
-        // 好大：心跳包没有发送完毕，还要继续发送
+        // 好大：心跳包发送完毕，等到 response
         if (req_ab_.Length() - req_ab_.Pos() <= 0) {
             return  kLongLinkSpeedTestResp;
         }
-        // 好大：心跳包发送完毕，等到 response
+        // 好大：心跳包没有发送完毕，还要继续发送
         else {
             return kLongLinkSpeedTestReq;
         }
@@ -191,10 +194,12 @@ int LongLinkSpeedTestItem::__HandleSpeedTestResp() {
 
     ssize_t nrecv = recv(socket_, resp_ab_.PosPtr(), resp_ab_.Capacity() - resp_ab_.Pos(), 0);
 
+    // 好大：服务器断开连接
     if (nrecv <= 0) {
         xerror2(TSF"recv nrecv <= 0, errno:%0, resp_ab_.Capacity():%1,resp_ab_.Pos():%2", strerror(errno), resp_ab_.Capacity(), resp_ab_.Pos());
         return kLongLinkSpeedTestFail;
-    } else {
+    }
+    else {
         xdebug2(TSF"recv length:%0", nrecv);
         resp_ab_.Length(nrecv + resp_ab_.Pos(), resp_ab_.Length() + nrecv);
 
@@ -214,7 +219,7 @@ int LongLinkSpeedTestItem::__HandleSpeedTestResp() {
             xdebug2(TSF"not recv an package,continue recv, resp_ab_.Lenght():%0", resp_ab_.Length());
             return kLongLinkSpeedTestResp;
         }
-        // 好大：服务器带宽不够了，其实并不是这个 test 会发送大量的数据从而测试网路速度，而是发送正常的心跳包给服务器，服务器通过 response 告诉 client 当前连接怎么样。
+        // 好大：如果服务器返回的 command id 是 "out of band", 那么立即在发送一个新的心跳包过去。为什么要这么做？
         else if (kCmdIdOutOfBand == anCmdID) {
             uint32_t nType = ((uint32_t*)body.Ptr(16))[0];
             uint32_t nTime = ((uint32_t*)body.Ptr(16))[1];

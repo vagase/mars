@@ -44,6 +44,20 @@ enum ELongLinkSpeedTestState {
 namespace mars {
     namespace stn {
 
+/**
+ * 好大：LongLinkSpeedTestItem 工作原理：
+ * 建立一个 socket 连接，然后给服务器发送一个心跳包（标准心跳包），然后服务器回一个正常的心跳包，然后将状态标记为 success。
+ * 没有其他测试指标，就只有成功失败，当然还有 GetConnectTime 而已。
+ * 如果服务器返回了的 command id 是 oob (out of band)，那么客户端立即再发送一个全新的心跳包过去。
+ *
+ * 那么什么时候标记为失败呢，有如下几种情况：
+ * 1. socket send / recv 出错
+ * 2. 解码服务器返回的心跳包时出错
+ * 3. 服务器response 的 command id 不是 kCmdIdOutOfBand，longlink_noop_resp_cmdid
+ * 4. 服务器 timeout 内没有返回值，timeout 一般是 10s
+ *
+ * LongLinkSpeedTestItem 作为基础元件，供给 LongLinkSpeedTest 、NetSourceTimerCheck 使用
+ */
 class LongLinkSpeedTestItem {
   public:
     LongLinkSpeedTestItem(const std::string& _ip, uint16_t _port);

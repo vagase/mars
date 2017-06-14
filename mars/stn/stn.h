@@ -186,7 +186,7 @@ enum IPSourceType {
     kIPSourceDebug,			// 设置了 Debug IP 地址映射
     kIPSourceDNS,			// 标准 DNS 解析
     kIPSourceNewDns,		// new dns: 有应用层提供的 DNS 解析，比如 HTTPDNS
-    kIPSourceProxy,			//
+    kIPSourceProxy,			// 走系统代理
     kIPSourceBackup,
 };
 
