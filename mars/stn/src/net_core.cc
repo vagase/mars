@@ -430,12 +430,16 @@ void NetCore::OnNetworkChange() {
     }
 
     // 好大：当网络发生变化的时候，与网络相关的资源都需要重置，比如 IP 地址，动态超时等等
+
+    // 好大：1. 停止 net source timer
 #ifdef USE_LONG_LINK
     netsource_timercheck_->CancelConnect();
 #endif
 
+    // 好大：2. net_source 1. 清除 proxy 信息; 2. 将所有的记录都放入 banned list 里面
     net_source_->ClearCache();
-    
+
+    // 好大：3. 当网络变化的时候，需要重置状态，因为 DynamicTimeoutStatus 这能基于某一种网络下的历史数据包分析，不然就不准确了。
     dynamic_timeout_->ResetStatus();
 #ifdef USE_LONG_LINK
     timing_sync_->OnNetworkChange();

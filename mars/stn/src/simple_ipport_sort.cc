@@ -151,6 +151,7 @@ void SimpleIPPortSort::InitHistory2BannedList(bool _savexml) {
 
     const tinyxml2::XMLElement* record = NULL;
 
+    // 好大：找到当前同网络下的所有记录
     for (record = recordsxml_.FirstChildElement(kRecord);
             NULL != record; record = record->NextSiblingElement(kRecord)) {
         const char* netinfoChr = record->Attribute(kNetInfo);
@@ -163,6 +164,7 @@ void SimpleIPPortSort::InitHistory2BannedList(bool _savexml) {
 
     if (NULL == record) { return; }
 
+    // 好大：为什么要将所有的 ip 记录放入 _ban_fail_list_ 呢？
     for (const tinyxml2::XMLElement* item = record->FirstChildElement(kItem); NULL != item; item = item->NextSiblingElement(kItem)) {
         const char* ip = item->Attribute(kIP);
         uint32_t    port = item->UnsignedAttribute(kPort);
@@ -172,6 +174,8 @@ void SimpleIPPortSort::InitHistory2BannedList(bool _savexml) {
         banitem.ip = ip;
         banitem.port = port;
         banitem.records = 0;
+
+        // 好大：因为 historyresult 是 64 位的，将 64 位转换位 8 位。
         //8 in 1
         for (int i = 0; i < 8; ++i) {
             SET_BIT(historyresult & 0xFF, banitem.records);

@@ -90,7 +90,8 @@ int DynamicTimeout::GetStatus() {
 }
 
 void DynamicTimeout::__StatusSwitch(std::string _cgi_uri, int _task_status) {
-    
+
+    // 好大：每隔 5 分钟重置 dyntime_failed_normal_count_
     if (dyntime_fncount_latstmodify_time_ == 0 || (gettickcount() - dyntime_fncount_latstmodify_time_) > kDynTimeCountExpireTime) {
         dyntime_fncount_latstmodify_time_ = gettickcount();
         dyntime_fncount_pos_ = -1;
@@ -104,7 +105,13 @@ void DynamicTimeout::__StatusSwitch(std::string _cgi_uri, int _task_status) {
 
     // 好大：修正 index，如果到末尾了，则重新指向开始；只记录最近 10 次的结果。
     dyntime_fncount_pos_ = ++dyntime_fncount_pos_ >= dyntime_failed_normal_count_.size() ? 0 : dyntime_fncount_pos_;
-    
+
+    /**
+     * 好大：
+     * dyntime_latest_bigpkg_goodtime_  ：dyntime_status_ 处于 kEValuating时，最近一次大包 MeetExpectTag 的时间戳
+     * dyntime_continuous_good_count_   ：dyntime_status_ 处于 kEValuating时，连续 MeetExpectTag 的次数。
+     * dyntime_failed_normal_count_     ：是一个环形令牌，MeetExpectTag 或者 NormalTag 就设置为 1，否则为 0。和当前 dyntime_status_ 并没有关系。
+     */
     switch (_task_status) {
         // 好大：中包、大包
         case kDynTimeTaskMidPkgMeetExpectTag:
@@ -126,18 +133,18 @@ void DynamicTimeout::__StatusSwitch(std::string _cgi_uri, int _task_status) {
             dyntime_failed_normal_count_.set(dyntime_fncount_pos_);
         }
             break;
-        // 好大：成功，但是没有达到预期标准
         case KDynTimeTaskNormalTag:
         {
+            // 好大：在评估过程中，只要有一个包不是 MeetExpectTag，就重置 dyntime_continuous_good_count_
             if (dyntime_status_ == kEValuating) {
                 dyntime_continuous_good_count_ = 0;
                 dyntime_latest_bigpkg_goodtime_ = 0;
             }
 
+            // 好大：虽然没有 MeetExpectTag，但是还是在 dyntime_failed_normal_count_ 记录为成功
             dyntime_failed_normal_count_.set(dyntime_fncount_pos_);
         }
             break;
-        // 好大：失败
         case kDynTimeTaskFailedTag:
         {
             dyntime_continuous_good_count_ = 0;
@@ -152,22 +159,25 @@ void DynamicTimeout::__StatusSwitch(std::string _cgi_uri, int _task_status) {
     switch (dyntime_status_) {
         case kEValuating:
         {
-            // 好大：连续小包复合高质量标准数 > 10 且 最近 5 分钟内有中大包复合预期，状态：完美
+            // 好大：连续 MeetExpectTag 的次数 >= 10 且 最近 5 分钟内有中大包复合预期，设置为 excellent
             if (dyntime_continuous_good_count_ >= kDynTimeMaxContinuousExcellentCount && (gettickcount() - dyntime_latest_bigpkg_goodtime_) <= kDynTimeCountExpireTime) {
                 xassert2(kDynTimeMaxContinuousExcellentCount >= 10, TSF"max_continuous_good_count:%_", kDynTimeMaxContinuousExcellentCount);
                 dyntime_status_ = kExcellent;
             }
-            // 好大：正在计算的时候，继续有不达标的，标记为 bad
-            else if (dyntime_failed_normal_count_.count() <= kDynTimeMinNormalPkgCount){
+            // 好大：最近10次，有 4 次及以上失败（非连续），设置为 bad
+            else if (dyntime_failed_normal_count_.count() <= kDynTimeMinNormalPkgCount /* 6 */){
                 xassert2(kDynTimeMinNormalPkgCount < dyntime_failed_normal_count_.size(), TSF"DYNTIME_MIN_NORMAL_PKG_COUNT:%_, dyntime_failed_normal_count_:%_", kDynTimeMinNormalPkgCount, dyntime_failed_normal_count_.size());
                 dyntime_status_ = kBad;
+
+                // 好大：evaluating -> bad 重置 dyntime_failed_normal_count_
                 dyntime_fncount_latstmodify_time_ = 0;
             }
+            // 好大：其余情况，保持状态不变
         }
             break;
         case kExcellent:
         {
-            // 好大：本来是很好的状态，突然有没有达标的，重新计算状态
+            // 好大：到达 excellent 状态以后，只要有包没有 MeetExpectTag ，就重置为 kEValuating
             if (dyntime_continuous_good_count_ == 0 && dyntime_latest_bigpkg_goodtime_ == 0){
                 dyntime_status_ = kEValuating;
             }
@@ -175,10 +185,12 @@ void DynamicTimeout::__StatusSwitch(std::string _cgi_uri, int _task_status) {
             break;
         case kBad:
         {
-            // 连续不达标 6 次了，再次重新开始计算？
+            // 好大：在 bad 情况下，已经有 6 次以上包成功了（非 kDynTimeTaskFailedTag）就重置为 kEValuating
             if (dyntime_failed_normal_count_.count() > kDynTimeMinNormalPkgCount) {
                 xassert2(kDynTimeMinNormalPkgCount < dyntime_failed_normal_count_.size(), TSF"DYNTIME_MIN_NORMAL_PKG_COUNT:%_, dyntime_failed_normal_count_:%_", kDynTimeMinNormalPkgCount, dyntime_failed_normal_count_.size());
                 dyntime_status_ = kEValuating;
+
+                // 好大：bad -> evaluating 重置 dyntime_failed_normal_count_
                 dyntime_fncount_latstmodify_time_ = 0;
             }
         }

@@ -569,6 +569,7 @@ void NetSource::__ClearShortLinkProxyInfo() {
     sg_slproxytimetick = ::gettickcount();
 }
 
+// 好大：1. 清除 proxy 信息; 2. 将所有的记录都放入 banned list 里面
 void NetSource::ClearCache() {
     xverbose_function();
     __ClearShortLinkProxyInfo();

@@ -376,7 +376,8 @@ NSLog(@"Current Radio Access Technology: %@", telephonyInfo.currentRadioAccessTe
 bool getCurRadioAccessNetworkInfo(RadioAccessNetworkInfo& _raninfo)
 {
     SCOPE_POOL();
-    
+
+    // 好大：iOS7 以下不支持
     if (!([[[UIDevice currentDevice] systemVersion] floatValue] >= 7.0)) { return false;}
     static CTTelephonyNetworkInfo* s_networkinfo = [[CTTelephonyNetworkInfo alloc] init];
     
