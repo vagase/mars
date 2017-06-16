@@ -59,7 +59,7 @@ namespace stn{
         //长连信令校验回包
         virtual bool OnLonglinkIdentifyResponse(const AutoBuffer& response_buffer, const AutoBuffer& identify_buffer_hash) = 0;
         
-        
+        // 好大：请求上层发起 sync 请求。
         virtual void RequestSync() = 0;
         
         //验证是否已登录

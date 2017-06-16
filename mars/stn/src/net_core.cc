@@ -442,7 +442,11 @@ void NetCore::OnNetworkChange() {
     // 好大：3. 当网络变化的时候，需要重置状态，因为 DynamicTimeoutStatus 这能基于某一种网络下的历史数据包分析，不然就不准确了。
     dynamic_timeout_->ResetStatus();
 #ifdef USE_LONG_LINK
+
+    // 好大：4. 当网络变化的时候，长连接会重新连接，那么同时也需要重置 timing_sync_ 的 timer，在长连接连接上之前提供一个保底的 sync 机制。
     timing_sync_->OnNetworkChange();
+
+
     if (longlink_task_manager_->getLongLinkConnectMonitor().NetworkChange())
         longlink_task_manager_->RedoTasks();
     zombie_task_manager_->RedoTasks();

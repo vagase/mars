@@ -113,6 +113,7 @@ void TimingSync::__OnAlarm()
     if (kNoNet !=::getNetInfo())
     {
         xinfo2(TSF"timing sync onRequestDoSync netinfo:%_", ::getNetInfo());
+        // 好大：请求上层发起 sync 请求。
         ::RequestSync();
     }
 

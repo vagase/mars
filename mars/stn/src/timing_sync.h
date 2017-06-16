@@ -34,7 +34,14 @@
 namespace mars {
     namespace stn {
 
-// TimingSync 最终调用的是 RequestSync，在长连接断开、重连的时候，每隔一个间隔触发一次 sync。
+/**
+ * 好大：TimingSync 最终调用的是 RequestSync，由应用层来发送同步请求（短链）。具体机制如下：
+ *
+ * 1. App Active 变化，网络状态变化，长连接断开的时候，开启 sync timer；
+ * 2. 长连接连接上的时候，停止 sync timer
+ *
+ * TimingSync 的目的就是为了当长连接断开的时候，客户端不能和服务器同步状态，这里就可以通过 TimingSync 提供一种保底的同步时机。
+ */
 class TimingSync {
   public:
     TimingSync(ActiveLogic& _active_logic);
