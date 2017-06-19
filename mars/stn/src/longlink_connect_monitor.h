@@ -68,14 +68,14 @@ class LongLinkConnectMonitor {
   private:
     ActiveLogic& activelogic_;
     LongLink& longlink_;
-    Alarm         alarm_;
+    Alarm         alarm_;           // 好大：这个 alarm 是用来做 intervalConnect 的，控制 connect 的频次
     Mutex         mutex_;
 
     LongLink::TLongLinkStatus status_;
     uint64_t last_connect_time_;
     int last_connect_net_type_;
 
-    Thread thread_;
+    Thread thread_;                 // 好大：这个 thread 是用来做 reconnect 的计时器
     Mutex testmutex_;
 
     int conti_suc_count_;

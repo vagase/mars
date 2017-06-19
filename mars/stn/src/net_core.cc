@@ -446,7 +446,7 @@ void NetCore::OnNetworkChange() {
     // 好大：4. 当网络变化的时候，长连接会重新连接，那么同时也需要重置 timing_sync_ 的 timer，在长连接连接上之前提供一个保底的 sync 机制。
     timing_sync_->OnNetworkChange();
 
-
+    // 好大：5.已经立即断开并重连的情况下，redo tasks
     if (longlink_task_manager_->getLongLinkConnectMonitor().NetworkChange())
         longlink_task_manager_->RedoTasks();
     zombie_task_manager_->RedoTasks();

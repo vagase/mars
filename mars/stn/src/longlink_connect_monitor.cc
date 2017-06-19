@@ -49,24 +49,25 @@ static const unsigned long kNoAccountInfoSaltRise = 300;
 static const unsigned long kNoAccountInfoInactiveInterval = (7 * 24 * 60 * 60);  // s
 
 enum {
-    kTaskConnect,
-    kLongLinkConnect,
-    kNetworkChangeConnect,
+    kTaskConnect,           // 好大：手动调用 MakeSureConnected
+    kLongLinkConnect,       // 好大：__OnSignalForeground，__OnSignalActive， __OnLongLinkStatuChanged
+    kNetworkChangeConnect,  // 好大：NetworkChange
 };
 
 enum {
-    kForgroundOneMinute,
-    kForgroundTenMinute,
-    kForgroundActive,
-    kBackgroundActive,
-    kInactive,
+    kForgroundOneMinute,    // 好大：1 分钟内的 foreground active
+    kForgroundTenMinute,    // 好大：1-10分钟的 foreground active
+    kForgroundActive,       // 好大：10 分钟以上的 foreground active
+    kBackgroundActive,      // 好大：_activeLogic.IsActive() && !_activeLogic.IsForeground()
+    kInactive,              // 好大：!_activeLogic.IsActive()
 };
 
 /*
  * 好大：
- *          前台1分钟   前台10分钟  前台超过10分钟    后台活跃    后台不活跃 
- * 任务      5 秒       10 秒      20 秒           30秒        5 分钟
- * 长连接    15 秒      30 秒      4 分钟           5 分钟      10 分钟
+ *                          前台1分钟   前台10分钟  前台超过10分钟    后台活跃    后台不活跃
+ * kTaskConnect             5 秒       10 秒      20 秒           30秒        5 分钟
+ * kLongLinkConnect         15 秒      30 秒      4 分钟           5 分钟      10 分钟
+ * kNetworkChangeConnect：   立刻执行
  */
 static unsigned long const sg_interval[][5]  = {
     {5,  10, 20,  30,  300},
@@ -149,8 +150,33 @@ bool LongLinkConnectMonitor::MakeSureConnected() {
     return LongLink::kConnected == longlink_.ConnectStatus();
 }
 
+/**
+ * 好大：只有在真正立即断开并重新连接的时候才返回 true
+ */
 bool LongLinkConnectMonitor::NetworkChange() {
     xdebug_function();
+
+    /**
+     * 好大：为什么只有Apple平台才在网络从 mobile 切换至非 mobile 时，通过 timer 的形式去重连？
+     * 是因为OS reachability 告诉网络状态发生的时候，Wi-Fi 实际上并没有准备好？需要等 2-3秒后才能使用？
+     *
+     *******************************************
+     ***** 通过微信iOS版本实际测试得到的结果是 *****：
+     *******************************************
+     *
+     * 1. 从wifi切换至 mobile 网络，立即重连；
+     * 2. 如果在频繁切换网络，导致 mobile 连接状态不够 10秒，那么从mobile切换至wifi会立即重连；
+     * 3. 如果 mobile 网络连接超过10秒，切换至 wifi，会在大概22秒之后进行重连
+     *
+     * 综上，有几个结论：
+     * 1. 即使在wifi情况下，仍然可以使用 Mobile 网络，Mobile 网络并不会因为连接了WIFI就立即断开，可以延迟重连
+     * （请注意，即使这个时候连接了一个不能访问互联网但WIFI，收发信息都是没有问题的！过度如此平滑，可见功夫！）；
+     * 2. WIFI 切换到4G后，WIFI肯定就不能再使用，需要立即重连；
+     * 3. 为什么从mobile网络切换至wifi，只有苹果采取延迟连接重连的策略？因为 WIFI 环境比 mobile 质量上更负责，认为mobile其实稳定性更可靠，
+     * 在对 WIFI进行了充分的测试之后，才连接Wi-Fi，所以这是理论上最优的一种策略。但是为什么只有苹果设备这么做？
+     * 因为安卓设备千奇百怪，所以各种厂商优化层出不穷，是不是有可能在wifi连接上之后，就立马关闭了mobile网络？那么与其这样还不如不延迟。
+     * 但苹果设备表现都相对一致，统一采取这样都策略没什么问题（这或许是和 MultipleTCP 有关？）。
+     */
 #ifdef __APPLE__
     __StopTimer();
 
@@ -163,11 +189,23 @@ bool LongLinkConnectMonitor::NetworkChange() {
 
         if (kNoNet == netifo) break;
 
+        /**
+         * 好大：满足这些条件才会 startTimer：
+         * 1. 当网络状态发生变化是，长连接必须处于连接状态
+         * 2. 长连接处于移动网络
+         * 3. 长连接维持了 10 秒钟以上
+         *
+         * 综上，长连接处于移动网络下的连接状态，然后切换到其他非移动网络时启动计时器；否值直接断开并重连长连接。
+         */
         if (__StartTimer()) return false;
     } while (false);
 
 #endif
+
+    // 好大：如果能启动计时器，直接断开并重连长连接
+    // 好大：1.首先断开连接
     longlink_.Disconnect(LongLink::kNetworkChange);
+    // 好大：2.然后立即重连
     return 0 == __IntervalConnect(kNetworkChangeConnect);
 }
 
@@ -178,6 +216,7 @@ unsigned long LongLinkConnectMonitor::__IntervalConnect(int _type) {
     unsigned long interval =  __Interval(_type, activelogic_) * 1000;
     unsigned long posttime = gettickcount() - longlink_.Profile().dns_time;
 
+    // 好大：计算的是从获得 DNS 时间到现在的 interval，当到达一定 interval 的时候就检查一次长连接状态。
     if (posttime >= interval) {
         bool newone = false;
         bool ret = longlink_.MakeSureConnected(&newone);
@@ -204,6 +243,7 @@ void LongLinkConnectMonitor::__OnSignalForeground(bool _isForeground) {
 #ifdef __APPLE__
 
     if (_isForeground) {
+        // 好大：App回到前台，发现有长连接虽然处于连接状态，但是已经有4分半钟以上时间没有收到任何数据了，就重置长连接。
         if ((longlink_.ConnectStatus() == LongLink::kConnected) &&
                 (tickcount_t().gettickcount() - longlink_.GetLastRecvTime() > tickcountdiff_t(4.5 * 60 * 1000))) {
             xwarn2(TSF"sock long time no send data, close it");
@@ -250,6 +290,7 @@ bool LongLinkConnectMonitor::__StartTimer() {
         return true;
     }
 
+    // 好大：等待 3 秒，然后每 10 秒钟触发一次
     int ret = thread_.start_periodic(kStartCheckPeriod, kTimeCheckPeriod);
     return 0 == ret;
 }
@@ -280,12 +321,22 @@ bool LongLinkConnectMonitor::__StopTimer() {
 void LongLinkConnectMonitor::__Run() {
     int netifo = getNetInfo();
 
+    /**
+     * 好大：必须满足如下条件才执行计时器，否则就停止计时器：
+     * 1. 长连接处于连接状态；
+     * 2. last_connect_time_（最近一次长连接状态发生变化的时间）必须大于 12 秒（比起之前的 10秒额外加了2秒，因为timer的delay是3秒）；
+     * 3. last_connect_net_type_（最近一次长连接状态发生变化的网路状态） 必须是 kMobile；
+     * 4. 现在必须不能是 kMobile；
+     *
+     * 综上，长连接处于移动网络下的连接状，且连接成功已经超过 12 秒，但是现在的网路不是移动网络。
+     */
     if (LongLink::kConnected != status_ || (::gettickcount() - last_connect_time_) <= 12 * 1000
             || kMobile != last_connect_net_type_ || kMobile == netifo) {
         thread_.cancel_periodic();
         return;
     }
 
+    // 好大：发送标准 DNS 协议包，其实并不关心 DNS 查询结果。这个是用来测试网络是否通常的
     struct socket_ipinfo_t dummyIpInfo;
     int ret = socket_gethostbyname(NetSource::GetLongLinkHosts().front().c_str(), &dummyIpInfo, 0, NULL);
 
@@ -295,6 +346,7 @@ void LongLinkConnectMonitor::__Run() {
         conti_suc_count_ = 0;
     }
 
+    // 好大：只有 WIFI 在保证 3 次以上的网络测试都通常的情况下，才开始重连，这个大概需要 30 多秒以上？
     if (conti_suc_count_ >= 3) {
         __ReConnect();
         thread_.cancel_periodic();

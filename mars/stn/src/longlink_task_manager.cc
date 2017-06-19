@@ -150,7 +150,10 @@ unsigned int LongLinkTaskManager::GetTasksContinuousFailCount() {
     return tasks_continuous_fail_count_;
 }
 
-// 好大：当网络发生变化，或者长连接被重置当时候，需要将队列里面所有 task 立即重新执行一遍
+/**
+ * 好大：当网络发生变化，或者长连接被重置当时候，需要将队列里面所有 task 立即重新执行一遍。
+ * 更准确地讲并不是立即执行，而是讲 lst_cmd_ 中的任务放入 lstsenddata_ 队列中。
+ */
 void LongLinkTaskManager::RedoTasks() {
     xdebug_function();
 
@@ -183,7 +186,9 @@ void LongLinkTaskManager::__RunLoop() {
         return;
     }
 
+    // 好大：检查是否有超时
     __RunOnTimeout();
+    // 好大：将所有 lst_cmd_ 中的任务放入 lstsenddata_ 队列中，如果 connected 或是待 connected 的时候就真的 read/write .
     __RunOnStartTask();
 
     if (!lst_cmd_.empty()) {
