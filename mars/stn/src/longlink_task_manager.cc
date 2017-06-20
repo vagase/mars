@@ -283,6 +283,7 @@ void LongLinkTaskManager::__RunOnStartTask() {
         std::list<TaskProfile>::iterator next = first;
         ++next;
 
+        // 好大：如果这个任务正在执行，那么就直接跳过，不像
         if (first->running_id) {
             ++sent_count;
             first = next;

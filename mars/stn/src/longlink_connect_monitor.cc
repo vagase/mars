@@ -228,6 +228,9 @@ unsigned long LongLinkConnectMonitor::__IntervalConnect(int _type) {
     }
 }
 
+/**
+ * 好大：长连接若没处于连接或正在连接状态，保证自 dns 获取以来一定间隔后自动重连。
+ */
 unsigned long  LongLinkConnectMonitor::__AutoIntervalConnect() {
     alarm_.Cancel();
     unsigned long remain = __IntervalConnect(kLongLinkConnect);
@@ -240,10 +243,14 @@ unsigned long  LongLinkConnectMonitor::__AutoIntervalConnect() {
 }
 
 void LongLinkConnectMonitor::__OnSignalForeground(bool _isForeground) {
+    // 好大：因为安卓有独立的 service 来做消息推送，所以当App进入前后台对于安卓并不影响，只有iOS需要做这些考虑。
 #ifdef __APPLE__
 
     if (_isForeground) {
-        // 好大：App回到前台，发现有长连接虽然处于连接状态，但是已经有4分半钟以上时间没有收到任何数据了，就重置长连接。
+        /**
+         * 好大：App回到前台，发现有长连接虽然处于连接状态，但是已经有4分半钟以上时间没有收到任何数据了，就重置长连接。
+         * 因为这个间隔大于心跳间隔了，任何长连接大于心跳间隔没有心跳、数据都应该重连。因为这个长连接处于"悬空状态"了，指不定服务端都已经将 socket close 了。
+         */
         if ((longlink_.ConnectStatus() == LongLink::kConnected) &&
                 (tickcount_t().gettickcount() - longlink_.GetLastRecvTime() > tickcountdiff_t(4.5 * 60 * 1000))) {
             xwarn2(TSF"sock long time no send data, close it");
@@ -252,6 +259,11 @@ void LongLinkConnectMonitor::__OnSignalForeground(bool _isForeground) {
     }
 
 #endif
+
+    /**
+     * 好大：即使是 App 进入后台，也尝试长连接重连。所以 App 进入后台的时候，并没有关闭长连接的动作。
+     * #iOS：那么App进入后台之后，socket 仍然处于 open状态，这个时候服务端狂给客户端写数据，客户端网卡能收到，但是App应用层已经不读取了，这个时候会怎样？
+     */
     __AutoIntervalConnect();
 }
 

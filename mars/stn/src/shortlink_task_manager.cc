@@ -456,7 +456,7 @@ void ShortLinkTaskManager::RedoTasks() {
         std::list<TaskProfile>::iterator next = first;
         ++next;
 
-        // 停止正在执行的 worker ?
+        // 停止正在执行的 worker
         if (first->running_id)    __DeleteShortLink(first->running_id);
 
         first->InitSendParam();

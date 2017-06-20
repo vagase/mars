@@ -451,7 +451,8 @@ void NetCore::OnNetworkChange() {
         longlink_task_manager_->RedoTasks();
     zombie_task_manager_->RedoTasks();
 #endif
-    
+
+    // 好大：6. 重新执行所有的任务，正在执行的先停止掉
     shortlink_task_manager_->RedoTasks();
     
     shortlink_try_flag_ = false;

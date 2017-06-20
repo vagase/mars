@@ -85,7 +85,7 @@ void ActiveLogic::OnForeground(bool _isforeground)
     if (_isforeground == isforeground_) return;
 
     bool oldisactive = isactive_;
-    isactive_ = true;
+    isactive_ = true;           // 只要有 OnForeground 事件（不管 true or false），active 都设为 true。
     isforeground_ = _isforeground;
     lastforegroundchangetime_ = ::gettickcount();
     alarm_.Cancel();
@@ -114,6 +114,10 @@ void ActiveLogic::OnForeground(bool _isforeground)
 
 bool ActiveLogic::IsActive() const
 {
+    /**
+     * 好大：在非 Apple 平台，在 App 进入后台10分钟后就将 active 设置为 false。
+     * 在 Apple 平台永远是 true。
+     */
     return isactive_;
 }
 
@@ -127,6 +131,9 @@ uint64_t ActiveLogic::LastForegroundChangeTime() const
 	return lastforegroundchangetime_;
 }
 
+/**
+ * 好大：在非 Apple 平台，在 App 进入后台10分钟后就将 active 设置为 false。
+ */
 void ActiveLogic::__OnInActive()
 {
     xdebug_function();
