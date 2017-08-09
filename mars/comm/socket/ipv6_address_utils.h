@@ -43,11 +43,19 @@ inline void IN6_SET_ADDR_V4MAPPED(in6_addr* a6, const in_addr* a4) {
     a6->s6_addr32[3] = a4->s_addr;
 }
 
+/**
+ * 好大：ipv4 是 32 个字节，ipv6 是 128 个字节。
+ * 参见 NAT64 （https://en.wikipedia.org/wiki/NAT64），查看具体 IPV6 和 IPV4 的转化规则。
+ */
 inline void IN6_SET_ADDR_NAT64(in6_addr* a6, const in_addr* a4) {
     *a6 = in6addr_nat64_init;
     a6->s6_addr32[3] = a4->s_addr;
 }
 
+/**
+ * 好大：NAT 64 规则，
+ * 64:ff9b:0000:0000:c000:201:0000:0000 <-> 192.0.2.1
+ */
 inline bool IN6_IS_ADDR_NAT64(const in6_addr* a6) {
     return a6->s6_addr32[0] == htonl(0x0064ff9b);
 }

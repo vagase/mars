@@ -36,6 +36,9 @@
 #include "mars/comm/thread/lock.h"
 #include "mars/comm/socket/unix_socket.h"
 
+/*
+ * 好大：创建一个 pipe，然后将 read pipe 添加到 select 监听的 fd 列表中。再通过向 write pipe 中写东西出发 fd 事件，迫使 select 返回。
+ */
 class SocketSelectBreaker {
   public:
     SocketSelectBreaker();
@@ -103,6 +106,10 @@ class SocketSelect {
 };
 
 #else
+
+/**
+ * 对一系列 socket 的 select 进行托管，并且可以通过 breaker，强制 select 返回达到强制终止 loop 的目的。
+ */
 class SocketSelect {
   public:
     SocketSelect(SocketSelectBreaker& _breaker, bool _autoclear = false);
@@ -110,6 +117,8 @@ class SocketSelect {
 
     void PreSelect();
     void Consign(SocketSelect& _consignor);
+
+    // 好大：下面三个函数就是讲 socket 添加到 select 监听的 fd 列表中。
     void Read_FD_SET(int _socket);
     void Write_FD_SET(int _socket);
     void Exception_FD_SET(int _socket);

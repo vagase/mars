@@ -39,6 +39,7 @@ socket_address::socket_address(const char* _url) {
     char ip_s[40] = {0};
     uint16_t port_u = 0;
 
+    // 192.168.1.10:8080
     if (0 < sscanf(_url, "%15[0-9.]:%8hu", ip_s, &port_u)) {
         sockaddr_in sock_addr = {0};
         sock_addr.sin_family = AF_INET;
@@ -46,7 +47,10 @@ socket_address::socket_address(const char* _url) {
         sock_addr.sin_port = htons(port_u);
 
         __init((sockaddr*)&sock_addr);
-    } else if (0 < sscanf(_url, "[%40[0-9a-fA-F:.]]:%8hu", ip_s, &port_u) || 0 < sscanf(_url, "%40[0-9a-fA-F:.]", ip_s)) {
+    }
+
+    // [2001:db8:1f70::999:de8:7648:6e8]:8080
+    else if (0 < sscanf(_url, "[%40[0-9a-fA-F:.]]:%8hu", ip_s, &port_u) || 0 < sscanf(_url, "%40[0-9a-fA-F:.]", ip_s)) {
         sockaddr_in6 sock_addr = {0};
         sock_addr.sin6_family = AF_INET6;
         socket_inet_pton(AF_INET6, ip_s, &sock_addr.sin6_addr);
@@ -117,22 +121,30 @@ void  socket_address::__init(const sockaddr* _addr) {
     memset(url_, 0, sizeof(url_));
 
     if (AF_INET == _addr->sa_family) {
-        (sockaddr_in&)addr_ = *(sockaddr_in*)_addr;
-        sockaddr_in& addr = (sockaddr_in&)addr_;
+        (sockaddr_in &) addr_ = *(sockaddr_in *) _addr;
+        sockaddr_in &addr = (sockaddr_in &) addr_;
 
+        // 好大：将 sin_addr 转换为 string 类型的 IP 地址
         socket_inet_ntop(addr.sin_family, &(addr.sin_addr), ip_, sizeof(ip_));
         snprintf(url_, sizeof(url_), "%s:%u", ip_, port());
-    } else if (AF_INET6 == _addr->sa_family) {
+    }
+
+    else if (AF_INET6 == _addr->sa_family) {
         (sockaddr_in6&)addr_ = *(sockaddr_in6*)_addr;
         sockaddr_in6& addr = (sockaddr_in6&)addr_;
 
+        // 是否是通过 NAT64 IPV4 转换而来的地址
 		if (IN6_IS_ADDR_NAT64(&addr_.in6.sin6_addr)) {
+            // NAT64 转换来的 IPV6，本质还是 IPV4，也当作 IPV4 处理。
 			strncpy(ip_, kWellKnownNat64Prefix, 9);
 			sockaddr_in addr = { 0 };
 			addr.sin_family = AF_INET;
 			addr.sin_addr.s_addr = addr_.in6.sin6_addr.s6_addr32[3];
 			socket_inet_ntop(addr.sin_family, &(addr.sin_addr), ip_+9, sizeof(ip_)-9);
-		} else {
+		}
+
+        // 真正的 IPV6 的地址
+        else {
 			socket_inet_ntop(addr.sin6_family, &(addr.sin6_addr), ip_, sizeof(ip_));
 		}
 

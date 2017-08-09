@@ -107,9 +107,9 @@ const static int kDynTimeTaskBiggerPkgMeetExpectTag = 4;        // 好大：超�
 const static unsigned int kFastSendUseLonglinkTaskCntLimit = 0;
 
 //longlink connect params
-const static unsigned int kLonglinkConnTimeout = 10 * 1000;
-const static unsigned int kLonglinkConnInteral = 4 * 1000;
-const static unsigned int kLonglinkConnMax = 3;
+const static unsigned int kLonglinkConnTimeout = 10 * 1000;     // 好大：复合连接每个连接的超时时间是 10 秒钟
+const static unsigned int kLonglinkConnInteral = 4 * 1000;      // 好大：连接不成功，每 4 秒发起一个新的连接
+const static unsigned int kLonglinkConnMax = 3;                 // 好大：最多同时发起3个复合连接
 
 //shortlink connect params
 const static unsigned int kShortlinkConnTimeout = 10 * 1000;

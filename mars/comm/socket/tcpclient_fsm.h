@@ -28,6 +28,18 @@
 class XLogger;
 class SocketSelect;
 
+/**
+ * FSM 是 Finite State Machine （有限状态机）的缩写。
+ * TCPClientFSM 就是 TCP 连接的状态管理机器，负责建立建立和状态维护。
+ *
+ * loop:
+ * ┌─────────────────────────┐     ┌──────────────────────────┐     ┌───────────────────────────┐
+ * │ TcpClientFSM::PreSelect │ ──▶ │   SocketSelect::select   │ ──▶ │ TcpClientFSM::AfterSelect │
+ * └─────────────────────────┘     └──────────────────────────┘     └───────────────────────────┘
+ *              ▲                                                                 │
+ *              │                                                                 │
+ *              └─────────────────────────────────────────────────────────────────┘
+ */
 class TcpClientFSM {
   public:
     enum TSocketStatus {

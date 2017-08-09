@@ -158,6 +158,8 @@ SOCKET ComplexConnect::ConnectImpatient(const std::vector<socket_address>& _veca
     }
 
     uint64_t  curtime = gettickcount();
+
+    // 好大：将 laststart_connecttime 前移，假装之前已经有了一个 connect
     uint64_t  laststart_connecttime = curtime - std::max(interval_, error_interval_);
 
     xdebug2(TSF"curtime:%_, laststart_connecttime:%_, @%_", curtime, laststart_connecttime, this);
@@ -183,6 +185,7 @@ SOCKET ComplexConnect::ConnectImpatient(const std::vector<socket_address>& _veca
             timeout = std::min(timeout, next_connect_timeout);
         }
 
+        // 好大：0 >= next_connect_timeout 表示已经达到发起新连接的时间间隔。
         // connect
         if (index < vecsocketfsm.size()
                 && 0 >= next_connect_timeout

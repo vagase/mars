@@ -214,6 +214,7 @@ unsigned long LongLinkConnectMonitor::__IntervalConnect(int _type) {
     if (LongLink::kConnecting == longlink_.ConnectStatus() || LongLink::kConnected == longlink_.ConnectStatus()) return 0;
 
     unsigned long interval =  __Interval(_type, activelogic_) * 1000;
+    // 好大：dns_time 是 LongLink::__RunConnect 时候的时间戳，是 start 获取 DNS 的时间。
     unsigned long posttime = gettickcount() - longlink_.Profile().dns_time;
 
     // 好大：计算的是从获得 DNS 时间到现在的 interval，当到达一定 interval 的时候就检查一次长连接状态。
@@ -275,6 +276,7 @@ void LongLinkConnectMonitor::__OnLongLinkStatuChanged(LongLink::TLongLinkStatus 
     alarm_.Cancel();
 
     if (LongLink::kConnectFailed == _status || LongLink::kDisConnected == _status) {
+        // 好大：如果长连接断开，500ms 后尝试自动重连
         alarm_.Start(500);
     } else if (LongLink::kConnected == _status) {
         xinfo2(TSF"cancel auto connect");

@@ -47,6 +47,7 @@ bool SocketSelectBreaker::ReCreate() {
     pipes_[0] = -1;
     pipes_[1] = -1;
 
+    // 好大：pipe[0] 是读 pipe， pipe[1] 是写 pipe。
     int Ret;
     Ret = pipe(pipes_);
     xassert2(-1 != Ret, "pipe errno=%d", errno);
@@ -71,6 +72,9 @@ bool SocketSelectBreaker::ReCreate() {
         return create_success_;
     }
 
+    /**
+     * 好大：对 pipe 对操作是非阻塞的，Break 和 Clear 操作本身是不会阻塞
+     */
     flags0 |= O_NONBLOCK;
     flags1 |= O_NONBLOCK;
     int ret0 = fcntl(pipes_[0], F_SETFL, flags0);
@@ -90,11 +94,15 @@ bool SocketSelectBreaker::ReCreate() {
     return create_success_;
 }
 
+/*
+ * 好大：break 通过给pipe里面write数据，出发 fd 的写事件，从而主动使得 select 函数返回，起到 break select 的作用。
+ */
 bool SocketSelectBreaker::Break() {
     ScopedLock lock(mutex_);
 
     if (broken_) return true;
 
+    // 好大：其实就是随便写点什么数据
     char dummy[] = "1";
     int ret = (int)write(pipes_[1], dummy, strlen(dummy));
     broken_ = true;
@@ -131,6 +139,7 @@ void SocketSelectBreaker::Close() {
 }
 
 int SocketSelectBreaker::BreakerFD() const {
+    // 好大：返回的是读 pipe，在 select 的时候加入这个 fd，就可以通过 SocketSelectBreaker.break 迫使 select 返回了。
     return pipes_[0];
 }
 
@@ -311,6 +320,7 @@ SocketSelect::~SocketSelect() {}
 void SocketSelect::PreSelect() {
     vfds_.clear();
 
+    // 好大：将 breaker 的 fd 额外添加到 select 的 fd 列表中。
     int fd = breaker_.BreakerFD();
     struct pollfd fditem = {0};
     fditem.fd = fd;

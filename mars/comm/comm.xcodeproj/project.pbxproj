@@ -203,8 +203,8 @@
 		13E9F2F519754DE6007591EC /* time_utils.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = time_utils.c; sourceTree = "<group>"; };
 		13E9F2F619754DE6007591EC /* time_utils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = time_utils.h; sourceTree = "<group>"; };
 		13E9F2F819754DE6007591EC /* preprocessor.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = preprocessor.h; sourceTree = "<group>"; };
-		13E9F2F919754DE6007591EC /* test.cpp_ */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = test.cpp_; sourceTree = "<group>"; };
-		13E9F2FA19754DE6007591EC /* test_for_c.c_ */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = test_for_c.c_; sourceTree = "<group>"; };
+		13E9F2F919754DE6007591EC /* test.cpp_ */ = {isa = PBXFileReference; fileEncoding = 1; lastKnownFileType = text; path = test.cpp_; sourceTree = "<group>"; };
+		13E9F2FA19754DE6007591EC /* test_for_c.c_ */ = {isa = PBXFileReference; fileEncoding = 1; lastKnownFileType = text; path = test_for_c.c_; sourceTree = "<group>"; };
 		13E9F2FB19754DE6007591EC /* xlogger.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = xlogger.h; sourceTree = "<group>"; };
 		13E9F2FC19754DE6007591EC /* xloggerbase.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = xloggerbase.c; sourceTree = "<group>"; };
 		13E9F2FD19754DE6007591EC /* xloggerbase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = xloggerbase.h; sourceTree = "<group>"; };

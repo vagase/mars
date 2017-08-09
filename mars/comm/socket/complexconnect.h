@@ -34,6 +34,7 @@ class AutoBuffer;
 namespace COMPLEX_CONNECT_NAMESPACE {
 #endif
 
+// 好大：复合连接回调接口
 class MComplexConnect {
   public:
     virtual ~MComplexConnect() {}
