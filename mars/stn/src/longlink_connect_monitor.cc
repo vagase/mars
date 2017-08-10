@@ -94,8 +94,11 @@ static unsigned long __Interval(int _type, const ActiveLogic& _activelogic) {
     unsigned long interval = sg_interval[_type][__CurActiveState(_activelogic)];
 
     if (kLongLinkConnect != _type) return interval;
-    
-    // 好大：针对长连接，后台不活跃 或者 前台活跃超过 10 分钟
+
+    /**
+     * 好大：针对长连接，后台不活跃 或者 前台活跃超过 10 分钟
+     * 目的是为了对"没有登录，或者没网络"的情况延长间隔时间
+     */
     if (__CurActiveState(_activelogic) == kInactive || __CurActiveState(_activelogic) == kForgroundActive) {  // now - LastForegroundChangeTime>10min
         // 好大：不活跃且没登录：一周
         if (!_activelogic.IsActive() && GetAccountInfo().username.empty()) {
@@ -214,7 +217,10 @@ unsigned long LongLinkConnectMonitor::__IntervalConnect(int _type) {
     if (LongLink::kConnecting == longlink_.ConnectStatus() || LongLink::kConnected == longlink_.ConnectStatus()) return 0;
 
     unsigned long interval =  __Interval(_type, activelogic_) * 1000;
-    // 好大：dns_time 是 LongLink::__RunConnect 时候的时间戳，是 start 获取 DNS 的时间。
+    /**
+     * 好大：dns_time 是 LongLink::__RunConnect 时候的时间戳，是 start 获取 DNS 的时间。
+     * 所以这里的 interval 就是距离上次长连接 connect 的时间。
+     */
     unsigned long posttime = gettickcount() - longlink_.Profile().dns_time;
 
     // 好大：计算的是从获得 DNS 时间到现在的 interval，当到达一定 interval 的时候就检查一次长连接状态。
