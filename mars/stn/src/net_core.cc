@@ -473,6 +473,10 @@ void NetCore::StopSignal() {
 
 // 好大：为什么只有 Apple 平台需要 reset？
 #ifdef __APPLE__
+
+/**
+ * 好大：强制重置（重连）长连接
+ */
 void NetCore::__ResetLongLink() {
     SYNC2ASYNC_FUNC(boost::bind(&NetCore::__ResetLongLink, this));
 

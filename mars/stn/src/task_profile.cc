@@ -33,7 +33,11 @@ void __SetLastFailedStatus(std::list<TaskProfile>::iterator _it){
     }
 }
 
+/**
+ * 好大：首包超时 + （WIFI：6.4s, 非WIFI：21s）
+ */
  uint64_t __ReadWriteTimeout(uint64_t  _first_pkg_timeout) {
+    // 好大：WIFI 10K／s，非WIFI 3K／s，那么超时分别就是 6.4s 和 21s
     uint64_t rate = (kMobile != getNetInfo()) ? kWifiMinRate : kGPRSMinRate;
     return  _first_pkg_timeout + 1000 * kMaxRecvLen / rate;
 }
@@ -41,9 +45,9 @@ void __SetLastFailedStatus(std::list<TaskProfile>::iterator _it){
 /**
  * 好大：首包超时和包包超时的关系，微信团队原话：https://mp.weixin.qq.com/s/PnICVDyVuMSyvpvTrdEpSQ
  *
- * 首包超时缩短了发现问题的周期，但是我们发现如果首个数据分段按时到达，而后续数据包丢失的情况下，仍然要等待整个读写超时才能发现问题。为此我们引入了包包超时，即两个数据分段之间的超时时间。因为包包超时在首包超时之后，这个阶段已经确认服务器收到了请求，且完成了请求的处理，因此不需要计算等待耗时、请求传输耗时、服务器处理耗时，只需要估算网络的 RTT。
+ * 首包超时缩短了发现问题的周期，但是我们发现如果首个数据分段按时到达，而后续数据包丢失的情况下，仍然要等待整个读写超时才能发现问题。
+ * 为此我们引入了包包超时，即两个数据分段之间的超时时间。因为包包超时在首包超时之后，这个阶段已经确认服务器收到了请求，且完成了请求的处理，因此不需要计算等待耗时、请求传输耗时、服务器处理耗时，只需要估算网络的 RTT。
  */
-
 /**
  * 好大：计算首包超时的时间，整体而言，如果知道网络状况好，那么首包超时时间应该比不知道网络状况（或者网络状况差）的时候要短。
  * _init_first_pkg_timeout 就是 task->server_process_cost，默认值是 -1； _init_first_pkg_timeout 为 0，表示采用固定的首包超时时间。

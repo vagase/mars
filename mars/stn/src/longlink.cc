@@ -133,7 +133,7 @@ LongLink::LongLink(NetSource& _netsource, MessageQueue::MessageQueue_t _messageq
 #ifdef ANDROID
     , smartheartbeat_(new SmartHeartbeat)
 #else
-    , smartheartbeat_(NULL)
+    , smartheartbeat_(NULL) // 好大：只有 Android 上执行智能心跳，iOS 采用固定心跳（ 默认为 4.5 min ）
 #endif
 	, connectstatus_(kConnectIdle)
 	, disconnectinternalcode_(kNone)
@@ -167,6 +167,7 @@ bool LongLink::SendWhenNoData(const unsigned char* _pbuf, size_t _len, uint32_t 
 bool LongLink::Stop(uint32_t _taskid) {
     ScopedLock lock(mutex_);
 
+    // 好大：stop task 只是将 task 从 lstsenddata_ 中删除。
     for (std::list<LongLinkSendData>::iterator it = lstsenddata_.begin(); it != lstsenddata_.end(); ++it) {
         if (_taskid == it->taskid && 0 == it->data.Pos()) {
             lstsenddata_.erase(it);
@@ -312,9 +313,12 @@ bool LongLink::__NoopResp(uint32_t _cmdid, uint32_t _taskid, AutoBuffer& _buf, A
 
 void LongLink::__RunResponseError(ErrCmdType _error_type, int _error_code, ConnectProfile& _profile, bool _networkreport) {
     ScopedLock lock(mutex_);
+
+    // 好大：每次长连接出现错误断开，都要清空 lstsenddata_ 里面的数据
     lstsenddata_.clear();
     lock.unlock();
 
+    // 好大：触发 LongLinkTaskManager __BatchErrorRespHandle
     AutoBuffer buf;
     OnResponse(_error_type, _error_code, 0, Task::kInvalidTaskID, buf, _profile);
     xassert2(fun_network_report_);
@@ -331,6 +335,8 @@ void LongLink::__ConnectStatus(TLongLinkStatus _status) {
     xinfo2(TSF"connect status from:%0 to:%1, nettype:%_", connectstatus_, _status, ::getNetInfo());
     connectstatus_ = _status;
     __NotifySmartHeartbeatConnectStatus(connectstatus_);
+
+    // 好大：在 async queue 上 执行  SignalConnection(connectstatus_)
     STATIC_RETURN_SYNC2ASYNC_FUNC(boost::bind(boost::ref(SignalConnection), connectstatus_));
 }
 

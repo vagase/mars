@@ -173,7 +173,7 @@ struct TransferProfile {
     uint64_t start_send_time;       // 好大：最近一次发送包的时间 ms
     uint64_t last_receive_pkg_time; // 好大：收到最后一个包的时间 ms
     uint64_t read_write_timeout;    // 好大：读写超时时间 ms
-    uint64_t first_pkg_timeout;     // 好大：首包超时时间 ms
+    uint64_t first_pkg_timeout;     // 好大：首包超时时间 ms, 7s
     
     size_t sent_size;
     size_t send_data_size;
@@ -206,7 +206,11 @@ struct TaskProfile {
             trycount = _task.retry_count;
         
         trycount++;
-        
+
+        /**
+         * 好大：_task.retry_count 默认是 1，
+         * task_timeout = (15s + 5s) * 2 = 40s;
+         */
         uint64_t task_timeout = (readwritetimeout + 5 * 1000) * trycount;
         
         if (0 < _task.total_timetout &&  (uint64_t)_task.total_timetout < task_timeout)
@@ -249,7 +253,7 @@ struct TaskProfile {
     TransferProfile transfer_profile;
     intptr_t running_id;
     
-    const uint64_t task_timeout;
+    const uint64_t task_timeout;            // 好大：默认 40s。
     const uint64_t start_task_time;  // ms
     uint64_t end_task_time;	//ms
     uint64_t retry_start_time;

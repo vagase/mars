@@ -176,8 +176,17 @@ void LongLinkTaskManager::RedoTasks() {
     __RunLoop();
 }
 
+/**
+ * 好大：有这几种情况会调用 __RunLoop：
+ * 1. __Runloop 每一秒钟会调用一次
+ * 2. StartTask
+ * 3. 长连接从断开到连接成功
+ * 4. Buf2Resp 返回了 kTaskFailHandleSessionTimeout，表示App虽然活着但是整个 session 已经 timeout 了。
+ * 5. RedoTasks，包括：1.长连接强制重连，2.网络状态发生变化
+ */
 void LongLinkTaskManager::__RunLoop() {
-    
+
+    // 好大：__RunLoop 并没有要求一定是长连接处于连接状态才执行的，它最关心的是 lst_cmd
     if (lst_cmd_.empty()) {
 #ifdef ANDROID
         /*cancel the last wakeuplock*/
@@ -188,7 +197,10 @@ void LongLinkTaskManager::__RunLoop() {
 
     // 好大：检查是否有超时
     __RunOnTimeout();
-    // 好大：将所有 lst_cmd_ 中的任务放入 lstsenddata_ 队列中，如果 connected 或是待 connected 的时候就真的 read/write .
+    /**
+     * 好大：将所有 lst_cmd_ 中的任务放入 lstsenddata_ 队列中，如果 connected 或是待 connected 的时候就真的 read/write .
+     * 要将task真正通过 longlink send出去，一定是需要长连接处于连接状态的。
+     */
     __RunOnStartTask();
 
     if (!lst_cmd_.empty()) {
@@ -219,8 +231,23 @@ void LongLinkTaskManager::__RunOnTimeout() {
         std::list<TaskProfile>::iterator next = first;
         ++next;
 
+        /**
+         * 好大：整个超时体系
+         * ┌─────────────────────────────────────────────────────────────────┐
+         * │                      max task timeout: 40s                      │
+         * ├────────────────────┬──────────────────────┬─────────────────────┘
+         * │   first package    │   package package    │
+         * │  timeout: WIFI:7s  │   timeout: WIFI:8S   │
+         * │    non-WIFI:10s    │     non-WIFI:12s     │
+         * ├────────────────────┴──────────────────┬───┘
+         * │          read-write timeout:          │
+         * │  first package timeout + (WIFI:6.4S   │
+         * │             non-WIFI:21s)             │
+         * └───────────────────────────────────────┘
+         */
+        // 好大：包已经发出去了才开始算
         if (first->running_id && 0 < first->transfer_profile.start_send_time) {
-            // 好大：首包超时，是通过 __FirstPkgTimeout 算出来的一个动态值。
+            // 好大：还没有收到服务器回包，首包超时，是通过 __FirstPkgTimeout 算出来的一个动态值。大概 7s
             if (0 == first->transfer_profile.last_receive_pkg_time && cur_time - first->transfer_profile.start_send_time >= first->transfer_profile.first_pkg_timeout) {
                 xerror2(TSF"task first-pkg timeout taskid:%_,  nStartSendTime=%_, nfirstpkgtimeout=%_",
                         first->task.taskid, first->transfer_profile.start_send_time / 1000, first->transfer_profile.first_pkg_timeout / 1000);
@@ -228,7 +255,7 @@ void LongLinkTaskManager::__RunOnTimeout() {
                 __SetLastFailedStatus(first);
             }
 
-            // 好大：包包超时，固定值：WIFI 下8秒，移动网络 12 秒
+            // 好大：已经收到服务器回包，包包超时，固定值：WIFI 下8秒，移动网络 12 秒
             if (0 < first->transfer_profile.last_receive_pkg_time && cur_time - first->transfer_profile.last_receive_pkg_time >= ((kMobile != getNetInfo()) ? kWifiPackageInterval : kGPRSPackageInterval)) {
                 xerror2(TSF"task pkg-pkg timeout, taskid:%_, nLastRecvTime=%_, pkg-pkg timeout=%_",
                         first->task.taskid, first->transfer_profile.last_receive_pkg_time / 1000, ((kMobile != getNetInfo()) ? kWifiPackageInterval : kGPRSPackageInterval) / 1000);
@@ -236,14 +263,14 @@ void LongLinkTaskManager::__RunOnTimeout() {
             }
         }
 
-        // 好大：读写超时，通过 __ReadWriteTimeout 算出来的基于首包超时的动态值。
+        // 好大：包已经发出去了就开始算。读写超时，通过 __ReadWriteTimeout 算出来的基于首包超时的动态值。
         if (first->running_id && 0 < first->transfer_profile.start_send_time && cur_time - first->transfer_profile.start_send_time >= first->transfer_profile.read_write_timeout) {
             xerror2(TSF"task read-write timeout, taskid:%_, , nStartSendTime=%_, nReadWriteTimeOut=%_",
                     first->task.taskid, first->transfer_profile.start_send_time / 1000, first->transfer_profile.read_write_timeout / 1000);
             socket_timeout_code = kEctLongReadWriteTimeout;
         }
 
-        // 好大：任务超时，通过 ComputeTaskTimeout 算出来的总超时
+        // 好大：不管包发出去没有都算。任务超时，通过 ComputeTaskTimeout 算出来的总超时
         if (cur_time - first->start_task_time >= first->task_timeout) {
             __SingleRespHandle(first, kEctLocal, kEctLocalTaskTimeout, kTaskFailHandleTaskTimeout, longlink_->Profile());
             istasktimeout = true;
