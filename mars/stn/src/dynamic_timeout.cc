@@ -48,12 +48,30 @@ void DynamicTimeout::CgiTaskStatistic(std::string _cgi_uri, unsigned int _total_
     int task_status = (_total_size == kDynTimeTaskFailedPkgLen || _cost_time == 0) ? kDynTimeTaskFailedTag : KDynTimeTaskNormalTag;
     
     if (task_status == KDynTimeTaskNormalTag) {
-        
+
+        /**
+         *  cost time, unit: ms
+         *            ┌─────────┬─────────┬─────────┬─────────┐
+         *            │  small  │ middle  │   big   │ bigger  │
+         *  ┌─────────┼─────────┼─────────┼─────────┼─────────┤
+         *  │ mobile  │  1000   │  3000   │  5000   │  7000   │
+         *  ├─────────┼─────────┼─────────┼─────────┼─────────┤
+         *  │  wifi   │   500   │  2000   │  4000   │  6000   │
+         *  └─────────┴─────────┴─────────┴─────────┴─────────┘
+         */
         unsigned int small_pkg_costtime = kMobile != getNetInfo() ? kDynTimeSmallPackageWifiCosttime : kDynTimeSmallPackageGPRSCosttime;
         unsigned int middle_pkg_costtime = kMobile != getNetInfo() ? kDynTimeMiddlePackageWifiCosttime : kDynTimeMiddlePackageGPRSCosttime;
         unsigned int big_pkg_costtime = kMobile != getNetInfo() ? kDynTimeBigPackageWifiCosttime : kDynTimeBigPackageGPRSCosttime;
         unsigned int bigger_pkg_costtime = kMobile != getNetInfo() ? kDynTimeBiggerPackageWifiCosttime : kDynTimeBiggerPackageGPRSCosttime;
-        
+
+        /**
+         *  package size
+         *  ┌─────────┬─────────┬─────────┬─────────┐
+         *  │  small  │ middle  │   big   │ bigger  │
+         *  ├─────────┼─────────┼─────────┼─────────┤
+         *  │  <=3K   │  <=10K  │  <=30K  │  > 30K  │
+         *  └─────────┴─────────┴─────────┴─────────┘
+         */
         if (_total_size < kDynTimeSmallPackageLen && _cost_time <= small_pkg_costtime) {
             task_status = kDynTimeTaskMeetExpectTag;
         }
